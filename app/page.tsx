@@ -133,352 +133,368 @@ export default function ServiceSchedule() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white p-8">
-      {/* Content area */}
-      <main className="max-w-6xl mx-auto bg-gradient-to-b from-[#1e1e1e] to-[#121212]" ref={contentRef}>
-        {/* Event Details */}
-        <section className="mb-8">
-          <h2 className="text-3xl font-bold mb-4">Event Details</h2>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <Input
-              placeholder="Event Name"
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-              className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-            />
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={`w-full justify-start text-left font-normal bg-[#282828] border-none hover:bg-green-500 hover:text-white focus:border-green-500 transition-colors ${!eventDate && "text-muted-foreground"}`}
-                >
-                  {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={eventDate}
-                  onSelect={setEventDate}
-                  initialFocus
-                  className="bg-[#282828] text-white border-green-500"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <h3 className="text-2xl font-semibold mb-2">Programme Flow</h3>
-          {programmeFlow.map((item, index) => (
-            <div key={index} className="flex items-center space-x-2 mb-2">
-              <Input
-                placeholder="Programme Name"
-                value={item.name}
-                onChange={(e) => updateProgrammeItem(index, 'name', e.target.value)}
-                className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-              />
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="time"
-                  value={item.startTime}
-                  onChange={(e) => updateProgrammeItem(index, 'startTime', e.target.value)}
-                  className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors"
-                />
-                <ClockIcon className="h-5 w-5 text-green-500" />
-                <Input
-                  type="time"
-                  value={item.endTime}
-                  onChange={(e) => updateProgrammeItem(index, 'endTime', e.target.value)}
-                  className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors"
-                />
-              </div>
-              <Button onClick={() => deleteProgrammeItem(index)} className="bg-red-500 hover:bg-red-600 transition-colors">
-                <TrashIcon className="h-5 w-5" />
-              </Button>
+    <div className="h-screen bg-[#121212] text-white">
+      {/* Main content - everything scrollable */}
+      <main className="h-full overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-8">
+          {/* Title Section - now part of scrollable content */}
+          <div className="pt-12 pb-8">
+            <div className="mb-8">
+              <h1 className="text-5xl font-bold text-green-500 mb-2">TechScript Generator</h1>
+              <p className="text-xl text-gray-400">by Echo</p>
             </div>
-          ))}
-          <Button
-            onClick={addProgrammeItem}
-            className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Add Programme Item
-          </Button>
-        </section>
-
-        {/* Sermon Information */}
-        <section className="mb-8">
-          <h2 className="text-3xl font-bold mb-4">Sermon Information</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <Input placeholder="Sermon Title" className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors" />
-            <Input placeholder="Sermon Verse" className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors" />
-          </div>
-        </section>
-
-        {/* Dress Code */}
-        <section className="mb-8">
-          <h2 className="text-3xl font-bold mb-4">Dress Code</h2>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block mb-2">Primary Color</label>
-              <div className="flex items-center">
-                <Input
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-12 h-12 p-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                />
-                <Input
-                  type="text"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="ml-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                />
+            
+            <div className="flex items-center space-x-2 mb-12">
+              <ClockIcon className="h-6 w-6 text-green-500" />
+              <div className="text-lg text-gray-300">
+                {currentDateTime.toLocaleDateString()} {currentDateTime.toLocaleTimeString()}
               </div>
             </div>
-            <div>
-              <label className="block mb-2">Secondary Color</label>
-              <div className="flex items-center">
-                <Input
-                  type="color"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="w-12 h-12 p-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                />
-                <Input
-                  type="text"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="ml-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block mb-2">Color Generator</label>
-              <Button
-                onClick={() => {
-                  setPrimaryColor(generateRandomColor())
-                  setSecondaryColor(generateRandomColor())
-                }}
-                className="w-full bg-green-500 hover:bg-green-600 transition-colors"
-              >
-                Generate Colors
-              </Button>
-            </div>
           </div>
-        </section>
 
-        {/* Set List */}
-        <section className="mb-8">
-          <h2 className="text-3xl font-bold mb-4">Set List</h2>
-          {['praise', 'worship', 'altarCall'].map((category) => (
-            <div key={category} className="mb-4">
-              <h3 className="text-xl font-semibold mb-2 capitalize">{category}</h3>
-              {setList[category].map((item, index) => (
-                <div key={index} className="flex items-center mb-2">
+          {/* Rest of content */}
+          <div className="pb-8">
+            {/* Event Details */}
+            <section className="mb-8">
+              <h2 className="text-3xl font-bold mb-4">Event Details</h2>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <Input
+                  placeholder="Event Name"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={`w-full justify-start text-left font-normal bg-[#282828] border-none hover:bg-green-500 hover:text-white focus:border-green-500 transition-colors ${!eventDate && "text-muted-foreground"}`}
+                    >
+                      {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={eventDate}
+                      onSelect={setEventDate}
+                      initialFocus
+                      className="bg-[#282828] text-white border-green-500"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <h3 className="text-2xl font-semibold mb-2">Programme Flow</h3>
+              {programmeFlow.map((item, index) => (
+                <div key={index} className="flex items-center space-x-2 mb-2">
                   <Input
-                    placeholder="Title"
-                    value={item.title}
-                    onChange={(e) => updateSetListItem(category, index, 'title', e.target.value)}
-                    className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                    placeholder="Programme Name"
+                    value={item.name}
+                    onChange={(e) => updateProgrammeItem(index, 'name', e.target.value)}
+                    className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
                   />
-                  <Input
-                    placeholder="By"
-                    value={item.by}
-                    onChange={(e) => updateSetListItem(category, index, 'by', e.target.value)}
-                    className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                  />
-                  <Input
-                    placeholder="YouTube Link"
-                    className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                  />
-                  <Button onClick={() => deleteSetListItem(category, index)} className="bg-red-500 hover:bg-red-600 transition-colors">
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="time"
+                      value={item.startTime}
+                      onChange={(e) => updateProgrammeItem(index, 'startTime', e.target.value)}
+                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors"
+                    />
+                    <ClockIcon className="h-5 w-5 text-green-500" />
+                    <Input
+                      type="time"
+                      value={item.endTime}
+                      onChange={(e) => updateProgrammeItem(index, 'endTime', e.target.value)}
+                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors"
+                    />
+                  </div>
+                  <Button onClick={() => deleteProgrammeItem(index)} className="bg-red-500 hover:bg-red-600 transition-colors">
                     <TrashIcon className="h-5 w-5" />
                   </Button>
                 </div>
               ))}
               <Button
-                onClick={() => addSetListItem(category)}
+                onClick={addProgrammeItem}
                 className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
-                Add {category}
+                Add Programme Item
               </Button>
-            </div>
-          ))}
-        </section>
+            </section>
 
-        {/* Roles */}
-        <section className="mb-8">
-          <h2 className="text-3xl font-bold mb-6">Roles</h2>
-          <div className="space-y-6">
-            <div className="bg-[#181818] p-6 rounded-lg">
-              <h3 className="text-xl font-semibold mb-4">Sermon</h3>
-              <div className="space-y-4">
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Select Preacher" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="john">John Doe</SelectItem>
-                    <SelectItem value="jane">Jane Smith</SelectItem>
-                    <SelectItem value="mark">Mark Johnson</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Preaching Support" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alice">Alice Brown</SelectItem>
-                    <SelectItem value="bob">Bob Wilson</SelectItem>
-                    <SelectItem value="carol">Carol White</SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* Sermon Information */}
+            <section className="mb-8">
+              <h2 className="text-3xl font-bold mb-4">Sermon Information</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <Input placeholder="Sermon Title" className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors" />
+                <Input placeholder="Sermon Verse" className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors" />
               </div>
-            </div>
-            <div className="bg-[#181818] p-6 rounded-lg">
-              <h3 className="text-xl font-semibold mb-4">Worship</h3>
-              <div className="space-y-4">
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Worship Leader" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="david">David Lee</SelectItem>
-                    <SelectItem value="emma">Emma Clark</SelectItem>
-                    <SelectItem value="frank">Frank Taylor</SelectItem>
-                  </SelectContent>
-                </Select>
+            </section>
+
+            {/* Dress Code */}
+            <section className="mb-8">
+              <h2 className="text-3xl font-bold mb-4">Dress Code</h2>
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <h4 className="text-lg font-semibold mb-2">Key Vocals</h4>
-                  <div className="space-y-2">
-                    {keyVocals.map((vocal, index) => (
-                      <Select key={index}>
-                        <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                          <SelectValue placeholder={vocal} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="singer1">Singer 1</SelectItem>
-                          <SelectItem value="singer2">Singer 2</SelectItem>
-                          <SelectItem value="singer3">Singer 3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ))}
+                  <label className="block mb-2">Primary Color</label>
+                  <div className="flex items-center">
+                    <Input
+                      type="color"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="w-12 h-12 p-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                    />
+                    <Input
+                      type="text"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="ml-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                    />
                   </div>
+                </div>
+                <div>
+                  <label className="block mb-2">Secondary Color</label>
+                  <div className="flex items-center">
+                    <Input
+                      type="color"
+                      value={secondaryColor}
+                      onChange={(e) => setSecondaryColor(e.target.value)}
+                      className="w-12 h-12 p-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                    />
+                    <Input
+                      type="text"
+                      value={secondaryColor}
+                      onChange={(e) => setSecondaryColor(e.target.value)}
+                      className="ml-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block mb-2">Color Generator</label>
                   <Button
-                    onClick={addKeyVocal}
-                    className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
+                    onClick={() => {
+                      setPrimaryColor(generateRandomColor())
+                      setSecondaryColor(generateRandomColor())
+                    }}
+                    className="w-full bg-green-500 hover:bg-green-600 transition-colors"
                   >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Add Voice
+                    Generate Colors
                   </Button>
                 </div>
               </div>
-            </div>
-            <div className="bg-[#181818] p-6 rounded-lg">
-              <h3 className="text-xl font-semibold mb-4">Musicians</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Acoustic Guitar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="guitarist1">Guitarist 1</SelectItem>
-                    <SelectItem value="guitarist2">Guitarist 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Bass Guitar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bassist1">Bassist 1</SelectItem>
-                    <SelectItem value="bassist2">Bassist 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Keyboard" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="keyboardist1">Keyboardist 1</SelectItem>
-                    <SelectItem value="keyboardist2">Keyboardist 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Drums" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="drummer1">Drummer 1</SelectItem>
-                    <SelectItem value="drummer2">Drummer 2</SelectItem>
-                  </SelectContent>
-                </Select>
+            </section>
+
+            {/* Set List */}
+            <section className="mb-8">
+              <h2 className="text-3xl font-bold mb-4">Set List</h2>
+              {['praise', 'worship', 'altarCall'].map((category) => (
+                <div key={category} className="mb-4">
+                  <h3 className="text-xl font-semibold mb-2 capitalize">{category}</h3>
+                  {setList[category].map((item, index) => (
+                    <div key={index} className="flex items-center mb-2">
+                      <Input
+                        placeholder="Title"
+                        value={item.title}
+                        onChange={(e) => updateSetListItem(category, index, 'title', e.target.value)}
+                        className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      />
+                      <Input
+                        placeholder="By"
+                        value={item.by}
+                        onChange={(e) => updateSetListItem(category, index, 'by', e.target.value)}
+                        className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      />
+                      <Input
+                        placeholder="YouTube Link"
+                        className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      />
+                      <Button onClick={() => deleteSetListItem(category, index)} className="bg-red-500 hover:bg-red-600 transition-colors">
+                        <TrashIcon className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    onClick={() => addSetListItem(category)}
+                    className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Add {category}
+                  </Button>
+                </div>
+              ))}
+            </section>
+
+            {/* Roles */}
+            <section className="mb-8">
+              <h2 className="text-3xl font-bold mb-6">Roles</h2>
+              <div className="space-y-6">
+                <div className="bg-[#181818] p-6 rounded-lg">
+                  <h3 className="text-xl font-semibold mb-4">Sermon</h3>
+                  <div className="space-y-4">
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Select Preacher" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="john">John Doe</SelectItem>
+                        <SelectItem value="jane">Jane Smith</SelectItem>
+                        <SelectItem value="mark">Mark Johnson</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Preaching Support" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alice">Alice Brown</SelectItem>
+                        <SelectItem value="bob">Bob Wilson</SelectItem>
+                        <SelectItem value="carol">Carol White</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="bg-[#181818] p-6 rounded-lg">
+                  <h3 className="text-xl font-semibold mb-4">Worship</h3>
+                  <div className="space-y-4">
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Worship Leader" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="david">David Lee</SelectItem>
+                        <SelectItem value="emma">Emma Clark</SelectItem>
+                        <SelectItem value="frank">Frank Taylor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div>
+                      <h4 className="text-lg font-semibold mb-2">Key Vocals</h4>
+                      <div className="space-y-2">
+                        {keyVocals.map((vocal, index) => (
+                          <Select key={index}>
+                            <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                              <SelectValue placeholder={vocal} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="singer1">Singer 1</SelectItem>
+                              <SelectItem value="singer2">Singer 2</SelectItem>
+                              <SelectItem value="singer3">Singer 3</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ))}
+                      </div>
+                      <Button
+                        onClick={addKeyVocal}
+                        className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
+                      >
+                        <PlusIcon className="h-5 w-5 mr-2" />
+                        Add Voice
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#181818] p-6 rounded-lg">
+                  <h3 className="text-xl font-semibold mb-4">Musicians</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Acoustic Guitar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="guitarist1">Guitarist 1</SelectItem>
+                        <SelectItem value="guitarist2">Guitarist 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Bass Guitar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bassist1">Bassist 1</SelectItem>
+                        <SelectItem value="bassist2">Bassist 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Keyboard" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="keyboardist1">Keyboardist 1</SelectItem>
+                        <SelectItem value="keyboardist2">Keyboardist 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Drums" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="drummer1">Drummer 1</SelectItem>
+                        <SelectItem value="drummer2">Drummer 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="bg-[#181818] p-6 rounded-lg">
+                  <h3 className="text-xl font-semibold mb-4">Creatives</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Lighting" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lighting1">Lighting Tech 1</SelectItem>
+                        <SelectItem value="lighting2">Lighting Tech 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Visual Lyrics" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="visual1">Visual Tech 1</SelectItem>
+                        <SelectItem value="visual2">Visual Tech 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Prompter Lyrics" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prompter1">Prompter 1</SelectItem>
+                        <SelectItem value="prompter2">Prompter 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                        <SelectValue placeholder="Photography" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="photographer1">Photographer 1</SelectItem>
+                        <SelectItem value="photographer2">Photographer 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="bg-[#181818] p-6 rounded-lg">
-              <h3 className="text-xl font-semibold mb-4">Creatives</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Lighting" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="lighting1">Lighting Tech 1</SelectItem>
-                    <SelectItem value="lighting2">Lighting Tech 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Visual Lyrics" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="visual1">Visual Tech 1</SelectItem>
-                    <SelectItem value="visual2">Visual Tech 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Prompter Lyrics" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prompter1">Prompter 1</SelectItem>
-                    <SelectItem value="prompter2">Prompter 2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                    <SelectValue placeholder="Photography" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="photographer1">Photographer 1</SelectItem>
-                    <SelectItem value="photographer2">Photographer 2</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            </section>
+
+            {/* Recorded Data (hidden from view) */}
+            <div className="hidden">
+              <pre>{recordedData}</pre>
             </div>
           </div>
-        </section>
-
-        {/* Recorded Data (hidden from view) */}
-        <div className="hidden">
-          <pre>{recordedData}</pre>
         </div>
       </main>
-
-      {/* Create Button */}
       <div className="fixed bottom-4 right-4">
         <Button onClick={handleCreate} className="bg-green-500 hover:bg-green-600 transition-colors">
           Create
         </Button>
       </div>
-
-      {/* Generated Link Modal */}
       {generatedLink && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-[#282828] p-6 rounded-lg text-white">
+          <div className="bg-white p-6 rounded-lg">
             <h3 className="text-xl font-bold mb-4">Schedule Created</h3>
             <p>Your schedule is available at:</p>
-            <a href={generatedLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline">
+            <a href={generatedLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
               {generatedLink}
             </a>
             <Button onClick={() => setGeneratedLink(null)} className="mt-4 bg-green-500 hover:bg-green-600 transition-colors">
