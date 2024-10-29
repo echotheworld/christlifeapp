@@ -13,6 +13,153 @@ import { format } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import SpotifyWebApi from 'spotify-web-api-node';
+
+type SpotifyCredentials = {
+  clientId: string;
+  clientSecret: string;
+};
+
+type MusicDetails = {
+  title: string;
+  artist: string;
+  album?: string;
+  thumbnail?: string;
+  spotifyUrl?: string;
+}
+
+// Initialize Spotify API (outside component)
+const spotifyApi = new SpotifyWebApi({
+  clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+});
+
+// Add this function to handle Spotify authentication
+const authenticateSpotify = async () => {
+  try {
+    // Create auth token using client credentials
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(
+          process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID + ':' + 
+          process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET
+        ),
+      },
+      body: 'grant_type=client_credentials'
+    });
+
+    const data = await response.json();
+    
+    if (data.access_token) {
+      spotifyApi.setAccessToken(data.access_token);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error authenticating with Spotify:', error);
+    return false;
+  }
+};
+
+// Add this new function to search Spotify directly
+const searchMusic = async (query: string): Promise<MusicDetails | null> => {
+  try {
+    // Authenticate if needed
+    if (!spotifyApi.getAccessToken()) {
+      const authenticated = await authenticateSpotify();
+      if (!authenticated) return null;
+    }
+
+    // Search tracks
+    const searchResult = await spotifyApi.searchTracks(query, { limit: 1 });
+
+    if (searchResult.body.tracks?.items.length === 0) return null;
+
+    const track = searchResult.body.tracks?.items[0];
+    return {
+      title: track.name,
+      artist: track.artists.map(artist => artist.name).join(', '),
+      album: track.album.name,
+      thumbnail: track.album.images[0]?.url,
+      spotifyUrl: track.external_urls.spotify
+    };
+  } catch (error) {
+    console.error('Error searching Spotify:', error);
+    return null;
+  }
+};
+
+// Add new types
+type SpotifyTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  thumbnail?: string;
+  spotifyUrl: string;
+}
+
+type SetListItem = {
+  title: string;
+  artist: string;
+  youtubeLink: string;
+  spotifyId?: string;
+  album?: string;
+  thumbnail?: string;
+  spotifyUrl?: string;
+  suggestions?: SpotifyTrack[];
+  isLoading: boolean;
+  isDetailsVisible: boolean;
+}
+
+// Add debounce utility function
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+// Add function to search Spotify with suggestions
+const searchSpotifySuggestions = async (query: string): Promise<SpotifyTrack[]> => {
+  try {
+    if (!query.trim()) return [];
+
+    // Authenticate if needed
+    if (!spotifyApi.getAccessToken()) {
+      const authenticated = await authenticateSpotify();
+      if (!authenticated) {
+        console.error('Failed to authenticate with Spotify');
+        return [];
+      }
+    }
+
+    console.log('Searching for:', query); // Debug log
+
+    const searchResult = await spotifyApi.searchTracks(query, { limit: 5 });
+    
+    console.log('Search results:', searchResult.body.tracks?.items); // Debug log
+
+    return searchResult.body.tracks?.items.map(track => ({
+      id: track.id,
+      title: track.name,
+      artist: track.artists.map(artist => artist.name).join(', '),
+      album: track.album.name,
+      thumbnail: track.album.images[track.album.images.length - 1]?.url,
+      spotifyUrl: track.external_urls.spotify
+    })) || [];
+
+  } catch (error) {
+    console.error('Error searching Spotify:', error);
+    return [];
+  }
+};
 
 export default function ServiceSchedule() {
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
@@ -24,10 +171,28 @@ export default function ServiceSchedule() {
   const [programmeFlow, setProgrammeFlow] = useState([
     { name: 'Opening Prayer', startTime: '09:00', endTime: '09:15' }
   ])
-  const [setList, setSetList] = useState({
-    praise: [{ title: '', by: '' }],
-    worship: [{ title: '', by: '' }],
-    altarCall: [{ title: '', by: '' }]
+  const [setList, setSetList] = useState<Record<string, SetListItem[]>>({
+    praise: [{
+      title: '',
+      artist: '',
+      youtubeLink: '',
+      isLoading: false,
+      isDetailsVisible: false,
+    }],
+    worship: [{
+      title: '',
+      artist: '',
+      youtubeLink: '',
+      isLoading: false,
+      isDetailsVisible: false,
+    }],
+    altarCall: [{
+      title: '',
+      artist: '',
+      youtubeLink: '',
+      isLoading: false,
+      isDetailsVisible: false,
+    }]
   })
   const [activeTab, setActiveTab] = useState('home')
   const [keyVocals, setKeyVocals] = useState(['Soprano', 'Alto', 'Tenor', 'Bass'])
@@ -36,6 +201,22 @@ export default function ServiceSchedule() {
   const [open, setOpen] = useState(false)
 
   const contentRef = useRef(null)
+
+  const [debouncedSearch] = useState(() =>
+    debounce(async (category: string, index: number, query: string) => {
+      console.log('Debounced search triggered:', query); // Debug log
+      
+      if (!query.trim()) {
+        updateSetListItem(category, index, 'suggestions', []);
+        return;
+      }
+
+      const suggestions = await searchSpotifySuggestions(query);
+      console.log('Got suggestions:', suggestions); // Debug log
+      
+      updateSetListItem(category, index, 'suggestions', suggestions);
+    }, 300)
+  );
 
   useEffect(() => {
     // Set initial time only after component mounts on client
@@ -62,18 +243,34 @@ export default function ServiceSchedule() {
   const addSetListItem = (category: 'praise' | 'worship' | 'altarCall') => {
     setSetList(prev => ({
       ...prev,
-      [category]: [...prev[category], { title: '', by: '' }]
-    }))
-  }
+      [category]: [...prev[category], {
+        title: '',
+        artist: '',
+        youtubeLink: '',
+        isLoading: false,
+        isDetailsVisible: false,
+      }]
+    }));
+  };
 
-  const updateSetListItem = (category: 'praise' | 'worship' | 'altarCall', index: number, field: 'title' | 'by', value: string) => {
+  const updateSetListItem = (
+    category: 'praise' | 'worship' | 'altarCall',
+    index: number,
+    field: keyof SetListItem,
+    value: any
+  ) => {
     setSetList(prev => ({
       ...prev,
       [category]: prev[category].map((item, i) =>
         i === index ? { ...item, [field]: value } : item
       )
-    }))
-  }
+    }));
+
+    // If updating title, trigger suggestions search
+    if (field === 'title') {
+      debouncedSearch(category, index, value);
+    }
+  };
 
   const deleteSetListItem = (category: 'praise' | 'worship' | 'altarCall', index: number) => {
     setSetList(prev => ({
@@ -146,6 +343,65 @@ export default function ServiceSchedule() {
       setEventName(value)
     }
   }
+
+  // Update the checkYouTubeLink function to checkMusic
+  const checkMusic = async (category: 'praise' | 'worship' | 'altarCall', index: number) => {
+    const item = setList[category][index];
+    
+    setSetList(prev => ({
+      ...prev,
+      [category]: prev[category].map((item, i) =>
+        i === index ? { ...item, isLoading: true } : item
+      )
+    }));
+
+    const details = await searchMusic(item.searchQuery);
+    
+    if (details) {
+      setSetList(prev => ({
+        ...prev,
+        [category]: prev[category].map((item, i) =>
+          i === index ? {
+            ...item,
+            title: details.title,
+            by: details.artist,
+            album: details.album,
+            thumbnail: details.thumbnail,
+            spotifyUrl: details.spotifyUrl,
+            isDetailsVisible: true,
+            isLoading: false
+          } : item
+        )
+      }));
+    } else {
+      setSetList(prev => ({
+        ...prev,
+        [category]: prev[category].map((item, i) =>
+          i === index ? { ...item, isLoading: false } : item
+        )
+      }));
+    }
+  };
+
+  // Add function to select a suggestion
+  const selectSuggestion = (category: 'praise' | 'worship' | 'altarCall', index: number, track: SpotifyTrack) => {
+    setSetList(prev => ({
+      ...prev,
+      [category]: prev[category].map((item, i) =>
+        i === index ? {
+          ...item,
+          title: track.title,
+          artist: track.artist,
+          album: track.album,
+          thumbnail: track.thumbnail,
+          spotifyUrl: track.spotifyUrl,
+          spotifyId: track.id,
+          suggestions: [], // Clear suggestions
+          isDetailsVisible: true
+        } : item
+      )
+    }));
+  };
 
   return (
     <div className="h-screen bg-[#121212] text-white">
@@ -333,26 +589,81 @@ export default function ServiceSchedule() {
                 <div key={category} className="mb-4">
                   <h3 className="text-xl font-semibold mb-2 capitalize">{category}</h3>
                   {setList[category].map((item, index) => (
-                    <div key={index} className="flex items-center mb-2">
-                      <Input
-                        placeholder="Title"
-                        value={item.title}
-                        onChange={(e) => updateSetListItem(category, index, 'title', e.target.value)}
-                        className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                      />
-                      <Input
-                        placeholder="By"
-                        value={item.by}
-                        onChange={(e) => updateSetListItem(category, index, 'by', e.target.value)}
-                        className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                      />
-                      <Input
-                        placeholder="YouTube Link"
-                        className="mr-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                      />
-                      <Button onClick={() => deleteSetListItem(category, index)} className="bg-red-500 hover:bg-red-600 transition-colors">
-                        <TrashIcon className="h-5 w-5" />
-                      </Button>
+                    <div key={index} className="mb-2">
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Input
+                            placeholder="Song Title"
+                            value={item.title}
+                            onChange={(e) => {
+                              updateSetListItem(category, index, 'title', e.target.value);
+                              console.log('Input changed:', e.target.value); // Debug log
+                            }}
+                            className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                          />
+                          {item.isLoading && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <div className="animate-spin h-4 w-4 border-2 border-green-500 rounded-full border-t-transparent"></div>
+                            </div>
+                          )}
+                          {item.suggestions && item.suggestions.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-md shadow-lg max-h-60 overflow-y-auto">
+                              {item.suggestions.map((track) => (
+                                <button
+                                  key={track.id}
+                                  onClick={() => selectSuggestion(category, index, track)}
+                                  className="w-full px-4 py-2 text-left hover:bg-[#383838] flex items-center gap-2"
+                                >
+                                  {track.thumbnail && (
+                                    <img 
+                                      src={track.thumbnail} 
+                                      alt={track.title}
+                                      className="w-8 h-8 rounded"
+                                    />
+                                  )}
+                                  <div>
+                                    <div className="font-medium">{track.title}</div>
+                                    <div className="text-sm text-gray-400">{track.artist}</div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Input
+                          placeholder="Artist"
+                          value={item.artist}
+                          onChange={(e) => updateSetListItem(category, index, 'artist', e.target.value)}
+                          className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                        />
+                        <Input
+                          placeholder="YouTube Link (optional)"
+                          value={item.youtubeLink}
+                          onChange={(e) => updateSetListItem(category, index, 'youtubeLink', e.target.value)}
+                          className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                        />
+                        {item.isDetailsVisible && item.thumbnail && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <img 
+                              src={item.thumbnail} 
+                              alt={item.title} 
+                              className="w-12 h-12 rounded"
+                            />
+                            {item.spotifyUrl && (
+                              <a 
+                                href={item.spotifyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-500 hover:text-green-400"
+                              >
+                                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                                </svg>
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <Button
