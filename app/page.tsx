@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { PlusIcon, HomeIcon, UsersIcon, CalendarIcon, MusicalNoteIcon, ClockIcon, TrashIcon, PencilIcon, DocumentArrowDownIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, HomeIcon, UsersIcon, CalendarIcon, MusicalNoteIcon, ClockIcon, TrashIcon, PencilIcon, DocumentArrowDownIcon, ArrowLeftIcon } from '@heroicons/react/24/solid'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,9 +15,10 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
 export default function ServiceSchedule() {
-  const [currentDateTime, setCurrentDateTime] = useState(new Date())
+  const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
   const [eventDate, setEventDate] = useState<Date>()
   const [eventName, setEventName] = useState('')
+  const [isOtherEvent, setIsOtherEvent] = useState(false)
   const [primaryColor, setPrimaryColor] = useState('#00ff00')
   const [secondaryColor, setSecondaryColor] = useState('#ffffff')
   const [programmeFlow, setProgrammeFlow] = useState([
@@ -32,10 +33,14 @@ export default function ServiceSchedule() {
   const [keyVocals, setKeyVocals] = useState(['Soprano', 'Alto', 'Tenor', 'Bass'])
   const [recordedData, setRecordedData] = useState('')
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [open, setOpen] = useState(false)
 
   const contentRef = useRef(null)
 
   useEffect(() => {
+    // Set initial time only after component mounts on client
+    setCurrentDateTime(new Date())
+    
     const timer = setInterval(() => setCurrentDateTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
@@ -132,6 +137,16 @@ export default function ServiceSchedule() {
     setGeneratedLink(`https://yourapp.com/view/${scheduleId}`);
   };
 
+  const handleEventTypeChange = (value: string) => {
+    if (value === 'others') {
+      setIsOtherEvent(true)
+      setEventName('')
+    } else {
+      setIsOtherEvent(false)
+      setEventName(value)
+    }
+  }
+
   return (
     <div className="h-screen bg-[#121212] text-white">
       {/* Main content - everything scrollable */}
@@ -147,7 +162,7 @@ export default function ServiceSchedule() {
             <div className="flex items-center space-x-2 mb-12">
               <ClockIcon className="h-6 w-6 text-green-500" />
               <div className="text-lg text-gray-300">
-                {currentDateTime.toLocaleDateString()} {currentDateTime.toLocaleTimeString()}
+                {currentDateTime?.toLocaleDateString()} {currentDateTime?.toLocaleTimeString()}
               </div>
             </div>
           </div>
@@ -158,13 +173,37 @@ export default function ServiceSchedule() {
             <section className="mb-8">
               <h2 className="text-3xl font-bold mb-4">Event Details</h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <Input
-                  placeholder="Event Name"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                />
-                <Popover>
+                {isOtherEvent ? (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => setIsOtherEvent(false)}
+                      className="h-10 w-10 bg-[#282828] hover:bg-green-500 hover:text-white transition-colors"
+                    >
+                      <ArrowLeftIcon className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      placeholder="Enter Event Name"
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      className="flex-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                    />
+                  </div>
+                ) : (
+                  <Select onValueChange={handleEventTypeChange}>
+                    <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                      <SelectValue placeholder="Select Event Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sunday-service">Sunday Service</SelectItem>
+                      <SelectItem value="sunday-special">Sunday Special</SelectItem>
+                      <SelectItem value="wednesday-revival">Wednesday Revival</SelectItem>
+                      <SelectItem value="others">Others</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -177,7 +216,10 @@ export default function ServiceSchedule() {
                     <Calendar
                       mode="single"
                       selected={eventDate}
-                      onSelect={setEventDate}
+                      onSelect={(date) => {
+                        setEventDate(date)
+                        setOpen(false) // Close the calendar after selection
+                      }}
                       initialFocus
                       className="bg-[#282828] text-white border-green-500"
                     />
@@ -198,14 +240,14 @@ export default function ServiceSchedule() {
                       type="time"
                       value={item.startTime}
                       onChange={(e) => updateProgrammeItem(index, 'startTime', e.target.value)}
-                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors"
+                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-time-picker-indicator]:hidden"
                     />
-                    <ClockIcon className="h-5 w-5 text-green-500" />
+                    <span className="text-green-500">to</span>
                     <Input
                       type="time"
                       value={item.endTime}
                       onChange={(e) => updateProgrammeItem(index, 'endTime', e.target.value)}
-                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors"
+                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-time-picker-indicator]:hidden"
                     />
                   </div>
                   <Button onClick={() => deleteProgrammeItem(index)} className="bg-red-500 hover:bg-red-600 transition-colors">
