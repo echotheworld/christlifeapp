@@ -459,30 +459,97 @@ export default function ServiceSchedule() {
     setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`])
   }
 
-  const exportToJPEG = async () => {
-    if (contentRef.current) {
-      const canvas = await html2canvas(contentRef.current)
-      const dataURL = canvas.toDataURL('image/jpeg')
-      const link = document.createElement('a')
-      link.href = dataURL
-      link.download = 'service_schedule.jpg'
-      link.click()
+  // Update the exportToJPEG function for high quality capture
+  const exportToJPEG = async (ref: React.RefObject<HTMLElement>) => {
+    if (ref.current) {
+      // Configure high resolution settings
+      const scale = 4; // Increase for higher resolution (2 = 2x, 3 = 3x, etc.)
+      
+      const options = {
+        scale: scale,
+        width: ref.current.scrollWidth,
+        height: ref.current.scrollHeight, // Capture full height
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.offsetWidth,
+        windowHeight: document.documentElement.offsetHeight,
+        useCORS: true, // Enable cross-origin image loading
+        allowTaint: true,
+        backgroundColor: '#1E1E1E', // Match your background color
+        logging: false,
+      };
+
+      try {
+        // Temporarily remove scrolling to capture everything
+        const originalStyle = ref.current.style.maxHeight;
+        ref.current.style.maxHeight = 'none';
+        
+        const canvas = await html2canvas(ref.current, options);
+        
+        // Restore original style
+        ref.current.style.maxHeight = originalStyle;
+
+        // Convert to high quality JPEG
+        const dataURL = canvas.toDataURL('image/jpeg', 1.0); // 1.0 = highest quality
+        
+        // Create filename with date
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `service_schedule_${date}.jpg`;
+
+        // Download
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = filename;
+        link.click();
+      } catch (error) {
+        console.error('Error generating image:', error);
+      }
     }
   }
 
-  const exportToPDF = async () => {
-    if (contentRef.current) {
-      const canvas = await html2canvas(contentRef.current)
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'in',
-        format: [8.5, 11]
-      })
-      pdf.addImage(imgData, 'PNG', 0, 0, 8.5, 11)
-      pdf.save('service_schedule.pdf')
+  const exportToPDF = async (ref: React.RefObject<HTMLElement>) => {
+    if (ref.current) {
+      try {
+        // Temporarily remove scrolling to capture everything
+        const originalStyle = ref.current.style.maxHeight;
+        ref.current.style.maxHeight = 'none';
+        
+        // Capture the content with high quality settings
+        const canvas = await html2canvas(ref.current, {
+          scale: 2, // Increase for higher resolution
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#1E1E1E',
+          logging: false,
+        });
+        
+        // Restore original style
+        ref.current.style.maxHeight = originalStyle;
+
+        // Get the dimensions
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Create PDF with custom dimensions
+        const pdf = new jsPDF({
+          orientation: imgHeight > imgWidth ? 'portrait' : 'landscape',
+          unit: 'mm',
+          format: 'a4',
+        });
+
+        // Add image to PDF
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+
+        // Save the PDF
+        const date = new Date().toISOString().split('T')[0];
+        pdf.save(`service_schedule_${date}.pdf`);
+
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+      }
     }
-  }
+  };
 
   const handleCreate = () => {
     setShowSummary(true); // Show summary first instead of creating immediately
@@ -1158,6 +1225,9 @@ export default function ServiceSchedule() {
     });
   };
 
+  // Add a new ref for the summary content
+  const summaryRef = useRef<HTMLDivElement>(null)
+
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
       <main className="h-full overflow-y-auto">
@@ -1579,8 +1649,8 @@ export default function ServiceSchedule() {
 
       {showSummary && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className={STYLES.summary.container}>
-            <h3 className="text-2xl font-bold text-green-500 mb-6">Schedule Summary</h3>
+          <div ref={summaryRef} className={STYLES.summary.container}>
+            <h3 className="text-2xl font-bold text-green-500 mb-6">TechScript</h3>
             
             {/* Basic Info */}
             <div className={STYLES.summary.section}>
@@ -1596,6 +1666,18 @@ export default function ServiceSchedule() {
               <div className={STYLES.summary.row}>
                 <span className={STYLES.summary.label}>Duration</span>
                 <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
+              </div>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Dress Code</span>
+                <span className={STYLES.summary.value}>
+                  : <span className="inline-flex items-center">
+                      <span className="inline-block w-4 h-4 border border-gray-600 translate-y-[1px]" style={{ backgroundColor: primaryColor }}></span>
+                      <span className="ml-1">{primaryColor}</span>
+                      <span className="mx-3"> & </span>
+                      <span className="inline-block w-4 h-4 border border-gray-600 translate-y-[1px]" style={{ backgroundColor: secondaryColor }}></span>
+                      <span className="ml-1">{secondaryColor}</span>
+                    </span>
+                </span>
               </div>
             </div>
 
@@ -1713,13 +1795,23 @@ export default function ServiceSchedule() {
 
             {/* Action Buttons */}
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => setShowSummary(false)} className={STYLES.button.secondary}>
+              <Button 
+                onClick={() => setShowSummary(false)} 
+                className={STYLES.button.secondary}
+              >
                 Edit
               </Button>
-              <Button onClick={() => {
-                setShowSummary(false);
-                // Add your create logic here
-              }} className={`${STYLES.button.primary} flex-1`}>
+              <Button 
+                onClick={async () => {
+                  try {
+                    await exportToPDF(summaryRef);
+                    setShowSummary(false);
+                  } catch (error) {
+                    console.error('Error exporting:', error);
+                  }
+                }} 
+                className={`${STYLES.button.primary} flex-1`}
+              >
                 Confirm & Create
               </Button>
             </div>
