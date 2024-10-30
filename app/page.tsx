@@ -210,7 +210,8 @@ interface SpotifyApiTrack {
 export default function ServiceSchedule(): JSX.Element {
   // State
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
-  const [eventDate, setEventDate] = useState<Date>()
+  const [eventDate, setEventDate] = useState<Date | undefined>(undefined)
+  const [open, setOpen] = useState(false)
   const [eventName, setEventName] = useState('')
   const [isOtherEvent, setIsOtherEvent] = useState(false)
   const [primaryColor, setPrimaryColor] = useState('#00ff00')
@@ -227,7 +228,6 @@ export default function ServiceSchedule(): JSX.Element {
   const [keyVocals, setKeyVocals] = useState(['Soprano', 'Alto', 'Tenor', 'Bass'])
   const [showSummary, setShowSummary] = useState(false)
   const [showNotification, setShowNotification] = useState(false)
-  const [open, setOpen] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<SetListCategories, SpotifyTrack[]>>({
     praise: [],
     worship: [],
@@ -390,6 +390,11 @@ export default function ServiceSchedule(): JSX.Element {
       setIsOtherEvent(false)
       setEventName(value)
     }
+  }
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setEventDate(date)
+    setOpen(false)
   }
 
   const handleCreate = (): void => {
@@ -654,28 +659,28 @@ export default function ServiceSchedule(): JSX.Element {
               </SelectContent>
             </Select>
           )}
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={`w-full justify-start text-left font-normal bg-[#282828] border-none hover:bg-green-500 hover:text-white focus:border-green-500 transition-colors ${!eventDate && "text-muted-foreground"}`}
-              >
-                {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={eventDate}
-                onSelect={(date) => {
-                  setEventDate(date)
-                  setOpen(false)
-                }}
-                initialFocus
-                className="bg-[#282828] text-white border-green-500"
-              />
-            </PopoverContent>
-          </Popover>
+            {/* Date Picker */}
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`w-full justify-start text-left font-normal bg-[#282828] border-none hover:bg-green-500 hover:text-white focus:border-green-500 transition-colors ${!eventDate && "text-muted-foreground"}`}
+                >
+                  {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={eventDate}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                  className="bg-[#282828] text-white border-green-500"
+                  fromDate={new Date()}
+                  disabled={(date) => date < new Date()}
+                />
+              </PopoverContent>
+            </Popover>
         </div>
       </div>
     </section>
