@@ -28,6 +28,21 @@ type MusicDetails = {
   spotifyUrl?: string;
 }
 
+// Add these style constants at the top of the file
+const STYLES = {
+  input: "w-full bg-[#282828] border-none focus:ring-2 focus:ring-green-500 hover:bg-[#323232] transition-colors",
+  select: "w-full bg-[#282828] border-none hover:bg-[#323232] focus:ring-2 focus:ring-green-500 transition-colors",
+  button: {
+    primary: "bg-green-500 hover:bg-green-600 text-white transition-colors font-medium",
+    secondary: "bg-[#323232] hover:bg-[#404040] text-white transition-colors font-medium",
+    danger: "bg-red-500 hover:bg-red-600 text-white transition-colors font-medium",
+  },
+  card: "bg-[#1E1E1E] rounded-lg p-6 border border-[#333333]",
+  section: "mb-12", // Increased spacing between sections
+  sectionTitle: "text-2xl font-bold mb-6 text-white",
+  subsectionTitle: "text-xl font-semibold mb-4 text-white",
+}
+
 // Initialize Spotify API (outside component)
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
@@ -474,31 +489,31 @@ export default function ServiceSchedule() {
 
   // Update the input form JSX for each category
   const renderCategoryInput = (category: 'praise' | 'worship' | 'altarCall' | 'revival') => (
-    <div className="bg-[#181818] p-4 rounded-lg">
-      <h3 className="text-xl font-semibold mb-4 capitalize">
+    <div className={STYLES.card}>
+      <h3 className={STYLES.subsectionTitle}>
         {category === 'altarCall' ? 'Altar Call' : category}
       </h3>
       <div className="space-y-4">
         <div className="relative">
           <Input
-            placeholder="Title"
+            placeholder="Song Title"
             value={inputs[category].title}
             onChange={(e) => {
               setInputs(prev => ({
                 ...prev,
                 [category]: { ...prev[category], title: e.target.value }
               }));
-              setOpenDropdown(category); // Open this dropdown
+              setOpenDropdown(category);
               debouncedSearch(category, e.target.value);
             }}
             onFocus={() => setOpenDropdown(category)}
-            className="w-full bg-[#282828] border-none"
+            className={STYLES.input}
           />
           {/* Suggestions Dropdown */}
           {suggestions[category].length > 0 && openDropdown === category && (
             <div 
               ref={dropdownRef}
-              className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto"
+              className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto border border-[#333333]"
             >
               {suggestions[category].map((track) => (
                 <div
@@ -538,73 +553,60 @@ export default function ServiceSchedule() {
           )}
         </div>
         <Input
-          placeholder="Artist"
+          placeholder="Artist Name"
           value={inputs[category].artist}
           onChange={(e) => setInputs(prev => ({
             ...prev,
             [category]: { ...prev[category], artist: e.target.value }
           }))}
-          className="w-full bg-[#282828] border-none"
+          className={STYLES.input}
         />
         <Input
-          placeholder="YouTube"
+          placeholder="YouTube Link"
           value={inputs[category].youtubeLink}
           onChange={(e) => setInputs(prev => ({
             ...prev,
             [category]: { ...prev[category], youtubeLink: e.target.value }
           }))}
-          className="w-full bg-[#282828] border-none"
+          className={STYLES.input}
         />
         <Button
-          onClick={() => {
-            addSetListItem(category);
-            // Clear only this category's inputs after adding
-            setInputs(prev => ({
-              ...prev,
-              [category]: { title: '', artist: '', youtubeLink: '' }
-            }));
-          }}
-          className="w-full bg-green-500 hover:bg-green-600"
+          onClick={() => addSetListItem(category)}
+          className={`w-full ${STYLES.button.primary}`}
         >
-          Add {category === 'altarCall' ? 'Altar Call' : category}
+          Add Song
         </Button>
       </div>
     </div>
   );
 
   return (
-    <div className="h-screen bg-[#121212] text-white">
-      {/* Main content - everything scrollable */}
+    <div className="min-h-screen bg-[#121212] text-gray-200">
       <main className="h-full overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-8">
-          {/* Title Section - now part of scrollable content */}
-          <div className="pt-12 pb-8">
-            <div className="mb-8">
-              <h1 className="text-5xl font-bold text-green-500 mb-2">TechScript Generator</h1>
-              <p className="text-xl text-gray-400">by Echo</p>
-            </div>
-            
-            <div className="flex items-center space-x-2 mb-12">
-              <ClockIcon className="h-6 w-6 text-green-500" />
-              <div className="text-lg text-gray-300">
+        <div className="max-w-6xl mx-auto px-8 py-12">
+          {/* Header */}
+          <div className={STYLES.section}>
+            <h1 className="text-4xl font-bold text-white mb-2">TechScript Generator</h1>
+            <p className="text-lg text-gray-400">by Echo</p>
+            <div className="flex items-center space-x-2 mt-6">
+              <ClockIcon className="h-5 w-5 text-green-500" />
+              <div className="text-gray-400">
                 {currentDateTime?.toLocaleDateString()} {currentDateTime?.toLocaleTimeString()}
               </div>
             </div>
           </div>
 
-          {/* Rest of content */}
-          <div className="pb-8">
-            {/* Event Details */}
-            <section className="mb-8">
-              <h2 className="text-3xl font-bold mb-4">Event Details</h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+          {/* Event Details */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Event Details</h2>
+            <div className={STYLES.card}>
+              <div className="grid grid-cols-2 gap-4">
                 {isOtherEvent ? (
                   <div className="flex gap-2">
                     <Button 
-                      variant="ghost" 
-                      size="icon"
+                      variant="ghost"
                       onClick={() => setIsOtherEvent(false)}
-                      className="h-10 w-10 bg-[#282828] hover:bg-green-500 hover:text-white transition-colors"
+                      className={STYLES.button.secondary}
                     >
                       <ArrowLeftIcon className="h-4 w-4" />
                     </Button>
@@ -612,12 +614,12 @@ export default function ServiceSchedule() {
                       placeholder="Enter Event Name"
                       value={eventName}
                       onChange={(e) => setEventName(e.target.value)}
-                      className="flex-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      className={STYLES.input}
                     />
                   </div>
                 ) : (
                   <Select onValueChange={handleEventTypeChange}>
-                    <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
+                    <SelectTrigger className={STYLES.select}>
                       <SelectValue placeholder="Select Event Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -651,7 +653,13 @@ export default function ServiceSchedule() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <h3 className="text-2xl font-semibold mb-2">Programme Flow</h3>
+            </div>
+          </section>
+
+          {/* Programme Flow */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Programme Flow</h2>
+            <div className={STYLES.card}>
               {programmeFlow.map((item, index) => (
                 <div key={index} className="flex items-center space-x-2 mb-2">
                   <Input
@@ -682,315 +690,379 @@ export default function ServiceSchedule() {
               ))}
               <Button
                 onClick={addProgrammeItem}
-                className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
+                className={STYLES.button.primary}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Add Programme Item
               </Button>
-            </section>
+            </div>
+          </section>
 
-            {/* Sermon Information */}
-            <section className="mb-8">
-              <h2 className="text-3xl font-bold mb-4">Sermon Information</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <Input placeholder="Sermon Title" className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors" />
-                <Input placeholder="Sermon Verse" className="bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors" />
-              </div>
-            </section>
-
-            {/* Dress Code */}
-            <section className="mb-8">
-              <h2 className="text-3xl font-bold mb-4">Dress Code</h2>
-              <div className="grid grid-cols-3 gap-4">
+          {/* Dress Code */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Dress Code</h2>
+            <div className={STYLES.card}>
+              <div className="grid grid-cols-3 gap-6">
                 <div>
-                  <label className="block mb-2">Primary Color</label>
-                  <div className="flex items-center">
+                  <label className="block mb-2 text-gray-400">Primary Color</label>
+                  <div className="flex gap-2">
                     <Input
                       type="color"
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-12 h-12 p-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
                     />
                     <Input
                       type="text"
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="ml-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      className={STYLES.input}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block mb-2">Secondary Color</label>
-                  <div className="flex items-center">
+                  <label className="block mb-2 text-gray-400">Secondary Color</label>
+                  <div className="flex gap-2">
                     <Input
                       type="color"
                       value={secondaryColor}
                       onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-12 h-12 p-1 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
                     />
                     <Input
                       type="text"
                       value={secondaryColor}
                       onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="ml-2 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                      className={STYLES.input}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block mb-2">Color Generator</label>
+                  <label className="block mb-2 text-gray-400">Quick Generate</label>
                   <Button
                     onClick={() => {
                       setPrimaryColor(generateRandomColor())
                       setSecondaryColor(generateRandomColor())
                     }}
-                    className="w-full bg-green-500 hover:bg-green-600 transition-colors"
+                    className={`w-full ${STYLES.button.primary}`}
                   >
-                    Generate Colors
+                    Random Colors
                   </Button>
                 </div>
               </div>
-            </section>
-
-            {/* Set List */}
-            <section className="mb-8">
-              <h2 className="text-3xl font-bold mb-4">Set List</h2>
-              
-              {/* 2x2 Grid of Input Forms */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {renderCategoryInput('praise')}
-                {renderCategoryInput('worship')}
-                {renderCategoryInput('altarCall')}
-                {renderCategoryInput('revival')}
-              </div>
-
-              {/* Single Combined Table for All Songs */}
-              <div className="bg-[#181818] p-4 rounded-lg">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-gray-400">
-                      <th className="pb-2">Category</th>
-                      <th className="pb-2">Title</th>
-                      <th className="pb-2">Artist</th>
-                      <th className="pb-2">YouTube</th>
-                      <th className="pb-2 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.values(setList).every(arr => arr.length === 0) ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-4 text-gray-400">
-                          No songs added yet
-                        </td>
-                      </tr>
-                    ) : (
-                      Object.entries(setList).map(([category, items]) =>
-                        items.length > 0 && items.map((item, index) => (
-                          <tr key={`${category}-${index}`} className="border-t border-[#282828]">
-                            <td className="py-2 capitalize">
-                              {category === 'altarCall' ? 'Altar Call' : category}
-                            </td>
-                            <td className="py-2">{item.title}</td>
-                            <td className="py-2">{item.artist}</td>
-                            <td className="py-2">
-                              {item.youtubeLink && (
-                                <a href={item.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400">
-                                  Link
-                                </a>
-                              )}
-                            </td>
-                            <td className="py-2">
-                              <Button
-                                onClick={() => deleteSetListItem(category as keyof typeof setList, index)}
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-500 hover:text-red-600 hover:bg-transparent"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* Roles */}
-            <section className="mb-8">
-              <h2 className="text-3xl font-bold mb-6">Roles</h2>
-              <div className="space-y-6">
-                <div className="bg-[#181818] p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold mb-4">Sermon</h3>
-                  <div className="space-y-4">
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Select Preacher" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="john">John Doe</SelectItem>
-                        <SelectItem value="jane">Jane Smith</SelectItem>
-                        <SelectItem value="mark">Mark Johnson</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Preaching Support" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="alice">Alice Brown</SelectItem>
-                        <SelectItem value="bob">Bob Wilson</SelectItem>
-                        <SelectItem value="carol">Carol White</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="bg-[#181818] p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold mb-4">Worship</h3>
-                  <div className="space-y-4">
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Worship Leader" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="david">David Lee</SelectItem>
-                        <SelectItem value="emma">Emma Clark</SelectItem>
-                        <SelectItem value="frank">Frank Taylor</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div>
-                      <h4 className="text-lg font-semibold mb-2">Key Vocals</h4>
-                      <div className="space-y-2">
-                        {keyVocals.map((vocal, index) => (
-                          <Select key={index}>
-                            <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                              <SelectValue placeholder={vocal} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="singer1">Singer 1</SelectItem>
-                              <SelectItem value="singer2">Singer 2</SelectItem>
-                              <SelectItem value="singer3">Singer 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ))}
-                      </div>
-                      <Button
-                        onClick={addKeyVocal}
-                        className="mt-2 bg-green-500 hover:bg-green-600 transition-colors"
-                      >
-                        <PlusIcon className="h-5 w-5 mr-2" />
-                        Add Voice
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-[#181818] p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold mb-4">Musicians</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Acoustic Guitar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="guitarist1">Guitarist 1</SelectItem>
-                        <SelectItem value="guitarist2">Guitarist 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Bass Guitar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bassist1">Bassist 1</SelectItem>
-                        <SelectItem value="bassist2">Bassist 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Keyboard" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="keyboardist1">Keyboardist 1</SelectItem>
-                        <SelectItem value="keyboardist2">Keyboardist 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Drums" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="drummer1">Drummer 1</SelectItem>
-                        <SelectItem value="drummer2">Drummer 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="bg-[#181818] p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold mb-4">Creatives</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Lighting" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lighting1">Lighting Tech 1</SelectItem>
-                        <SelectItem value="lighting2">Lighting Tech 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Visual Lyrics" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="visual1">Visual Tech 1</SelectItem>
-                        <SelectItem value="visual2">Visual Tech 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Prompter Lyrics" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="prompter1">Prompter 1</SelectItem>
-                        <SelectItem value="prompter2">Prompter 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select>
-                      <SelectTrigger className="w-full bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors">
-                        <SelectValue placeholder="Photography" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="photographer1">Photographer 1</SelectItem>
-                        <SelectItem value="photographer2">Photographer 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Recorded Data (hidden from view) */}
-            <div className="hidden">
-              <pre>{recordedData}</pre>
             </div>
-          </div>
+          </section>
+
+          {/* Sermon Series */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Sermon Series</h2>
+            <div className={STYLES.card}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block mb-2 text-gray-400">Series</label>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Select Series" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="faith">Faith Foundations</SelectItem>
+                      <SelectItem value="love">Love in Action</SelectItem>
+                      <SelectItem value="hope">Hope Renewed</SelectItem>
+                      <SelectItem value="new">Start New Series</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block mb-2 text-gray-400">Title</label>
+                  <Input
+                    placeholder="Enter sermon title"
+                    className={STYLES.input}
+                  />
+                </div>
+                <div>
+                  <label className="block mb-2 text-gray-400">Bible Verse</label>
+                  <div className="flex gap-4">
+                    <Select>
+                      <SelectTrigger className={STYLES.select}>
+                        <SelectValue placeholder="Book" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="genesis">Genesis</SelectItem>
+                        <SelectItem value="exodus">Exodus</SelectItem>
+                        {/* Add more books as needed */}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Chapter"
+                      type="number"
+                      min="1"
+                      className={`${STYLES.input} w-24`}
+                    />
+                    <Input
+                      placeholder="Verse"
+                      type="text"
+                      className={`${STYLES.input} w-24`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Set List */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Set List</h2>
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {renderCategoryInput('praise')}
+              {renderCategoryInput('worship')}
+              {renderCategoryInput('altarCall')}
+              {renderCategoryInput('revival')}
+            </div>
+            
+            {/* Songs Table */}
+            <div className={STYLES.card}>
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-gray-400">
+                    <th className="pb-2">Category</th>
+                    <th className="pb-2">Title</th>
+                    <th className="pb-2">Artist</th>
+                    <th className="pb-2">YouTube</th>
+                    <th className="pb-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.values(setList).every(arr => arr.length === 0) ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4 text-gray-400">
+                        No songs added yet
+                      </td>
+                    </tr>
+                  ) : (
+                    Object.entries(setList).map(([category, items]) =>
+                      items.length > 0 && items.map((item, index) => (
+                        <tr key={`${category}-${index}`} className="border-t border-[#282828]">
+                          <td className="py-2 capitalize">
+                            {category === 'altarCall' ? 'Altar Call' : category}
+                          </td>
+                          <td className="py-2">{item.title}</td>
+                          <td className="py-2">{item.artist}</td>
+                          <td className="py-2">
+                            {item.youtubeLink && (
+                              <a href={item.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400">
+                                Link
+                              </a>
+                            )}
+                          </td>
+                          <td className="py-2">
+                            <Button
+                              onClick={() => deleteSetListItem(category as keyof typeof setList, index)}
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Roles */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Roles</h2>
+            <div className="grid grid-cols-2 gap-6">
+              {/* Sermon */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Sermon</h3>
+                <div className="space-y-4">
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Select Preacher" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="john">John Doe</SelectItem>
+                      <SelectItem value="jane">Jane Smith</SelectItem>
+                      <SelectItem value="mark">Mark Johnson</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Preaching Support" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alice">Alice Brown</SelectItem>
+                      <SelectItem value="bob">Bob Wilson</SelectItem>
+                      <SelectItem value="carol">Carol White</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Worship */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Worship</h3>
+                <div className="space-y-4">
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Worship Leader" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="david">David Lee</SelectItem>
+                      <SelectItem value="emma">Emma Clark</SelectItem>
+                      <SelectItem value="frank">Frank Taylor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
+                    <div className="space-y-2">
+                      {keyVocals.map((vocal, index) => (
+                        <Select key={index}>
+                          <SelectTrigger className={STYLES.select}>
+                            <SelectValue placeholder={vocal} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="singer1">Singer 1</SelectItem>
+                            <SelectItem value="singer2">Singer 2</SelectItem>
+                            <SelectItem value="singer3">Singer 3</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={addKeyVocal}
+                      className={`mt-2 ${STYLES.button.primary}`}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Singer
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Musicians */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Musicians</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Acoustic Guitar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="guitarist1">Guitarist 1</SelectItem>
+                      <SelectItem value="guitarist2">Guitarist 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Bass Guitar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bassist1">Bassist 1</SelectItem>
+                      <SelectItem value="bassist2">Bassist 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Keyboard" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="keyboardist1">Keyboardist 1</SelectItem>
+                      <SelectItem value="keyboardist2">Keyboardist 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Drums" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="drummer1">Drummer 1</SelectItem>
+                      <SelectItem value="drummer2">Drummer 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Creatives */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Creatives</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Lighting" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lighting1">Lighting Tech 1</SelectItem>
+                      <SelectItem value="lighting2">Lighting Tech 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Visual Lyrics" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="visual1">Visual Tech 1</SelectItem>
+                      <SelectItem value="visual2">Visual Tech 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Prompter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="prompter1">Prompter 1</SelectItem>
+                      <SelectItem value="prompter2">Prompter 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Photography" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="photographer1">Photographer 1</SelectItem>
+                      <SelectItem value="photographer2">Photographer 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
-      <div className="fixed bottom-4 right-4">
-        <Button onClick={handleCreate} className="bg-green-500 hover:bg-green-600 transition-colors">
+
+      {/* Create Button */}
+      <div className="fixed bottom-6 right-6">
+        <Button 
+          onClick={handleCreate} 
+          className={`${STYLES.button.primary} px-8 py-6 text-lg shadow-lg`}
+        >
           Create
         </Button>
       </div>
+
+      {/* Modal */}
       {generatedLink && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg">
-            <h3 className="text-xl font-bold mb-4">Schedule Created</h3>
-            <p>Your schedule is available at:</p>
-            <a href={generatedLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center">
+          <div className={`${STYLES.card} max-w-md w-full mx-4`}>
+            <h3 className={STYLES.subsectionTitle}>Schedule Created</h3>
+            <p className="mb-4">Your schedule is available at:</p>
+            <a 
+              href={generatedLink} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-green-500 hover:text-green-400 break-all"
+            >
               {generatedLink}
             </a>
-            <Button onClick={() => setGeneratedLink(null)} className="mt-4 bg-green-500 hover:bg-green-600 transition-colors">
+            <Button 
+              onClick={() => setGeneratedLink(null)} 
+              className={`${STYLES.button.primary} mt-6 w-full`}
+            >
               Close
             </Button>
           </div>
