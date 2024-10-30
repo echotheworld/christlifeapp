@@ -880,62 +880,49 @@ export default function ServiceSchedule() {
           <h3 className={STYLES.subsectionTitle}>Musicians</h3>
           <div className="grid grid-cols-2 gap-4">
             {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
-              // Get available musicians for this instrument
               const availableMusicians = musicians.filter(m => {
-                // Check if this entry matches the current instrument
                 const playsInstrument = m.instrument === instrument;
-
-                // Get all currently selected musicians' names
-                const selectedMusicianNames = Object.entries(selectedMusicians)
-                  .map(([inst, id]) => {
-                    const selectedMusician = musicians.find(m => m.id.toString() === id);
-                    return selectedMusician?.name;
-                  })
-                  .filter(Boolean);
-                
-                // Check if this musician (by name) is already selected somewhere else
-                const notSelectedElsewhere = !selectedMusicianNames.includes(m.name) || 
-                  selectedMusicians[instrument] === m.id.toString();
-
+                const notSelectedElsewhere = !Object.entries(selectedMusicians)
+                  .filter(([inst]) => inst !== instrument)
+                  .some(([_, id]) => id === m.id.toString());
                 return playsInstrument && notSelectedElsewhere;
               });
 
-              // If no musicians available and none selected for this instrument, show disabled state
-              if (availableMusicians.length === 0 && !selectedMusicians[instrument]) {
-                return (
-                  <div key={instrument} className="opacity-50">
-                    <Select disabled>
-                      <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
-                        <SelectValue placeholder={`No ${instrument} available`} />
+              return (
+                <div key={instrument} className="flex items-center gap-2">
+                  <div className="flex-grow">
+                    <Select
+                      value={selectedMusicians[instrument] || ""}
+                      onValueChange={(value) => {
+                        setSelectedMusicians(prev => ({
+                          ...prev,
+                          [instrument]: value
+                        }))
+                      }}
+                    >
+                      <SelectTrigger className={STYLES.select}>
+                        <SelectValue placeholder={instrument} />
                       </SelectTrigger>
+                      <SelectContent>
+                        {availableMusicians.map((musician) => (
+                          <SelectItem key={musician.id} value={musician.id.toString()}>
+                            {musician.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   </div>
-                );
-              }
-
-              // If there are available musicians or one is selected, show normal select
-              return (
-                <Select
-                  key={instrument}
-                  value={selectedMusicians[instrument]}
-                  onValueChange={(value) => {
-                    setSelectedMusicians(prev => ({
-                      ...prev,
-                      [instrument]: value
-                    }))
-                  }}
-                >
-                  <SelectTrigger className={STYLES.select}>
-                    <SelectValue placeholder={instrument} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMusicians.map((musician) => (
-                      <SelectItem key={musician.id} value={musician.id.toString()}>
-                        {musician.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {selectedMusicians[instrument] && (
+                    <Button
+                      onClick={() => clearMusician(instrument)}
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -946,65 +933,51 @@ export default function ServiceSchedule() {
           <h3 className={STYLES.subsectionTitle}>Creatives</h3>
           <div className="grid grid-cols-2 gap-4">
             {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
-              // Get available creatives for this role
               const availableCreatives = creatives
                 .filter(c => {
-                  // Check if this entry matches the current role
                   const hasRole = c.role === role;
-
-                  // Get all currently selected creatives' names
-                  const selectedCreativeNames = Object.entries(selectedCreatives)
-                    .map(([r, id]) => {
-                      const selectedCreative = creatives.find(c => c.id.toString() === id);
-                      return selectedCreative?.name;
-                    })
-                    .filter(Boolean);
-                  
-                  // Check if this creative (by name) is already selected somewhere else
-                  const notSelectedElsewhere = !selectedCreativeNames.includes(c.name) || 
-                    selectedCreatives[role] === c.id.toString();
-
+                  const notSelectedElsewhere = !Object.entries(selectedCreatives)
+                    .filter(([r]) => r !== role)
+                    .some(([_, id]) => id === c.id.toString());
                   return hasRole && notSelectedElsewhere;
                 })
-                // Sort by name alphabetically
                 .sort((a, b) => a.name.localeCompare(b.name));
 
-              // If no creatives available and none selected for this role, show disabled state
-              if (availableCreatives.length === 0 && !selectedCreatives[role]) {
-                return (
-                  <div key={role} className="opacity-50">
-                    <Select disabled>
-                      <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
-                        <SelectValue placeholder={`No ${role} available`} />
+              return (
+                <div key={role} className="flex items-center gap-2">
+                  <div className="flex-grow">
+                    <Select
+                      value={selectedCreatives[role] || ""}
+                      onValueChange={(value) => {
+                        setSelectedCreatives(prev => ({
+                          ...prev,
+                          [role]: value
+                        }))
+                      }}
+                    >
+                      <SelectTrigger className={STYLES.select}>
+                        <SelectValue placeholder={role} />
                       </SelectTrigger>
+                      <SelectContent>
+                        {availableCreatives.map((creative) => (
+                          <SelectItem key={creative.id} value={creative.id.toString()}>
+                            {creative.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   </div>
-                );
-              }
-
-              // If there are available creatives or one is selected, show normal select
-              return (
-                <Select
-                  key={role}
-                  value={selectedCreatives[role]}
-                  onValueChange={(value) => {
-                    setSelectedCreatives(prev => ({
-                      ...prev,
-                      [role]: value
-                    }))
-                  }}
-                >
-                  <SelectTrigger className={STYLES.select}>
-                    <SelectValue placeholder={role} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCreatives.map((creative) => (
-                      <SelectItem key={creative.id} value={creative.id.toString()}>
-                        {creative.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {selectedCreatives[role] && (
+                    <Button
+                      onClick={() => clearCreative(role)}
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1088,6 +1061,23 @@ export default function ServiceSchedule() {
       default:
         return 'Not set';
     }
+  };
+
+  // Add these new clear functions near your other state management functions
+  const clearMusician = (instrument: string) => {
+    setSelectedMusicians(prev => {
+      const updated = { ...prev };
+      delete updated[instrument];
+      return updated;
+    });
+  };
+
+  const clearCreative = (role: string) => {
+    setSelectedCreatives(prev => {
+      const updated = { ...prev };
+      delete updated[role];
+      return updated;
+    });
   };
 
   return (
@@ -1510,15 +1500,15 @@ export default function ServiceSchedule() {
       )}
 
       {showSummary && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4">
-          <div className={`${STYLES.card} max-w-2xl w-full max-h-[80vh] overflow-y-auto`}>
-            <h3 className={`${STYLES.subsectionTitle} sticky top-0 bg-[#1E1E1E] py-2`}>Schedule Summary</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center overflow-y-auto py-10">
+          <div className={`${STYLES.card} max-w-3xl w-full mx-4`}>
+            <h3 className={`${STYLES.subsectionTitle} mb-6`}>Schedule Summary</h3>
             
-            <div className="space-y-4">
-              {/* Event Details */}
+            {/* Event Details */}
+            <div className="space-y-6">
               <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-1">Event Details</h4>
-                <div className="grid grid-cols-2 gap-2">
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Event Details</h4>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-gray-400">Event Type:</span>
                     <p>{getEventTypeDisplay()}</p>
@@ -1532,10 +1522,10 @@ export default function ServiceSchedule() {
 
               {/* Programme Flow */}
               <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-1">Programme Flow</h4>
-                <div className="space-y-1">
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Programme Flow</h4>
+                <div className="space-y-2">
                   {programmeFlow.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
+                    <div key={index} className="flex justify-between">
                       <span>{item.name}</span>
                       <span className="text-gray-400">{item.startTime} - {item.endTime}</span>
                     </div>
@@ -1545,8 +1535,8 @@ export default function ServiceSchedule() {
 
               {/* Dress Code */}
               <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-1">Dress Code</h4>
-                <div className="flex gap-4 text-sm">
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Dress Code</h4>
+                <div className="flex gap-4">
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded" style={{ backgroundColor: primaryColor }}></div>
                     <span>Primary: {primaryColor}</span>
@@ -1560,8 +1550,8 @@ export default function ServiceSchedule() {
 
               {/* Sermon Details */}
               <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-1">Sermon Details</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Sermon Details</h4>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-gray-400">Series:</span>
                     <p>{sermonSeries || "Not set"}</p>
@@ -1577,27 +1567,71 @@ export default function ServiceSchedule() {
                 </div>
               </div>
 
+              {/* Set List */}
+              <div>
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Set List</h4>
+                <div className="space-y-4">
+                  {Object.entries(setList).map(([category, songs]) => (
+                    songs.length > 0 && (
+                      <div key={category}>
+                        <h5 className="text-gray-400 capitalize mb-1">
+                          {category === 'altarCall' ? 'Altar Call' : category}
+                        </h5>
+                        <div className="space-y-1">
+                          {songs.map((song, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span>{song.title}</span>
+                              <span className="text-gray-400">{song.artist}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+
               {/* Team */}
               <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-1">Team</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Team</h4>
+                <div className="grid grid-cols-2 gap-6">
                   {/* Preaching */}
                   <div>
-                    <h5 className="text-gray-400">Preaching</h5>
-                    <div>
-                      <span className="text-gray-400">Preacher: </span>
-                      <span>{preachers.find(p => p.id === parseInt(selectedPreacher))?.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Support: </span>
-                      <span>{preachingSupport.find(p => p.id === parseInt(selectedSupport))?.name}</span>
+                    <h5 className="text-gray-400 mb-1">Preaching</h5>
+                    <div className="space-y-1">
+                      <div>
+                        <span className="text-gray-400">Preacher: </span>
+                        <span>
+                          {console.log('Rendering Preacher:', selectedPreacher)}
+                          {selectedPreacher ? 
+                            preachers.find(p => {
+                              console.log('Comparing:', p.id.toString(), selectedPreacher);
+                              return p.id.toString() === selectedPreacher;
+                            })?.name || 'Not found' 
+                            : 'Not selected'
+                          }
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Preaching Support: </span>
+                        <span>
+                          {console.log('Rendering Support:', selectedSupport)}
+                          {selectedSupport ? 
+                            preachingSupport.find(p => {
+                              console.log('Comparing:', p.id.toString(), selectedSupport);
+                              return p.id.toString() === selectedSupport;
+                            })?.name || 'Not found' 
+                            : 'Not selected'
+                          }
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Worship */}
                   <div>
-                    <h5 className="text-gray-400">Worship</h5>
-                    <div>
+                    <h5 className="text-gray-400 mb-1">Worship</h5>
+                    <div className="space-y-1">
                       {selectedWorshipLeader && (
                         <div>
                           <span className="text-gray-400">Worship Leader: </span>
@@ -1615,8 +1649,8 @@ export default function ServiceSchedule() {
 
                   {/* Musicians */}
                   <div>
-                    <h5 className="text-gray-400">Musicians</h5>
-                    <div>
+                    <h5 className="text-gray-400 mb-1">Musicians</h5>
+                    <div className="space-y-1">
                       {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
                         <div key={instrument}>
                           <span className="text-gray-400">{instrument === 'Acoustic Guitar' ? 'Acoustic Guitarist' :
@@ -1633,8 +1667,8 @@ export default function ServiceSchedule() {
 
                   {/* Creatives */}
                   <div>
-                    <h5 className="text-gray-400">Creatives</h5>
-                    <div>
+                    <h5 className="text-gray-400 mb-1">Creatives</h5>
+                    <div className="space-y-1">
                       {Object.entries(selectedCreatives).map(([role, id]) => id && (
                         <div key={role}>
                           <span className="text-gray-400">{role === 'Lighting' ? 'Lighting Director' :
@@ -1652,8 +1686,8 @@ export default function ServiceSchedule() {
               </div>
             </div>
 
-            {/* Action Buttons - Make them sticky at the bottom */}
-            <div className="sticky bottom-0 bg-[#1E1E1E] pt-4 mt-4 flex gap-4">
+            {/* Action Buttons */}
+            <div className="flex gap-4 mt-8">
               <Button 
                 onClick={() => setShowSummary(false)} 
                 className={STYLES.button.secondary}
@@ -1663,7 +1697,8 @@ export default function ServiceSchedule() {
               <Button 
                 onClick={() => {
                   setShowSummary(false);
-                  handleCreate();
+                  // Add your existing create logic here
+                  // handleCreate();
                 }} 
                 className={`${STYLES.button.primary} flex-1`}
               >
