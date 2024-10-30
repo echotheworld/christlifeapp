@@ -120,19 +120,19 @@ const STYLES = {
     secondary: "bg-[#323232] hover:bg-[#404040] text-white transition-colors font-medium",
     danger: "bg-red-500 hover:bg-red-600 text-white transition-colors font-medium",
   },
-  card: "bg-[#1E1E1E] rounded-lg p-6 border border-[#333333]",
-  section: "mb-12",
-  sectionTitle: "text-2xl font-bold mb-6 text-white",
-  subsectionTitle: "text-xl font-semibold mb-4 text-white",
+  card: "bg-[#1E1E1E] rounded-lg p-4 md:p-6 border border-[#333333]",
+  section: "mb-8 md:mb-12",
+  sectionTitle: "text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white",
+  subsectionTitle: "text-lg md:text-xl font-semibold mb-3 md:mb-4 text-white",
   summary: {
-    container: "bg-[#1E1E1E] rounded-lg p-4 max-w-3xl w-full max-h-[85vh] overflow-y-auto font-mono text-sm",
+    container: "bg-[#1E1E1E] rounded-lg p-3 md:p-4 max-w-3xl w-full max-h-[85vh] overflow-y-auto font-mono text-sm",
     section: "p-4 bg-[#282828] rounded-lg mb-4",
     sectionTitle: "text-base font-semibold text-green-500 mb-3",
     label: "text-white inline-block w-40",
     value: "text-gray-400 flex-1",
     row: "mb-1.5 flex items-center",
     teamGrid: {
-      container: "grid grid-cols-2 gap-x-8 gap-y-4",
+      container: "grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-x-8 md:gap-y-4",
       section: "space-y-1.5",
       title: "text-green-500 mb-1.5",
     },
@@ -782,538 +782,720 @@ export default function ServiceSchedule(): JSX.Element {
 
   // Main render
   return (
-    <div className="min-h-screen bg-[#121212] text-gray-200">
-      <main className="h-full overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-8 py-12">
-          {/* Header */}
-          <div className={STYLES.section}>
-            <h1 className="text-4xl font-bold text-white mb-2">TechScript Generator</h1>
-            <p className="text-lg text-gray-400">by Echo</p>
-            <div className="flex items-center space-x-2 mt-6">
-              <ClockIcon className="h-5 w-5 text-green-500" />
-              <div className="text-gray-400">
-                {currentDateTime?.toLocaleDateString()} {currentDateTime?.toLocaleTimeString()}
+    <div className="min-h-screen p-4 md:p-8">
+      <main className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className={STYLES.section}>
+          <h1 className="text-4xl font-bold text-white mb-2">TechScript Generator</h1>
+          <p className="text-lg text-gray-400">by Echo</p>
+          <div className="flex items-center space-x-2 mt-6">
+            <ClockIcon className="h-5 w-5 text-green-500" />
+            <div className="text-gray-400">
+              {currentDateTime?.toLocaleDateString()} {currentDateTime?.toLocaleTimeString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Event Details */}
+        {renderEventDetails()}
+
+        {/* Programme Flow */}
+        <section className={STYLES.section}>
+          <h2 className={STYLES.sectionTitle}>Programme Flow</h2>
+          <div className={STYLES.card}>
+            {programmeFlow.map((item, index) => (
+              <div key={index} className="flex items-center space-x-2 mb-2">
+                <Input
+                  placeholder="Enter Programme Name"
+                  value={item.name}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '' || (lettersOnly(value) && value.length <= 20)) {
+                      updateProgrammeItem(index, 'name', value)
+                    }
+                  }}
+                  maxLength={20}
+                  className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
+                />
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="time"
+                    value={item.startTime}
+                    onChange={(e) => updateProgrammeItem(index, 'startTime', e.target.value)}
+                    className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-time-picker-indicator]:hidden"
+                  />
+                  <span className="text-green-500">to</span>
+                  <Input
+                    type="time"
+                    value={item.endTime}
+                    onChange={(e) => updateProgrammeItem(index, 'endTime', e.target.value)}
+                    className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-time-picker-indicator]:hidden"
+                  />
+                </div>
+                <Button onClick={() => deleteProgrammeItem(index)} className="bg-red-500 hover:bg-red-600 transition-colors">
+                  <TrashIcon className="h-5 w-5" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              onClick={addProgrammeItem}
+              className={STYLES.button.primary}
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Add Programme Item
+            </Button>
+
+            <div className="flex justify-end mt-4 text-gray-400">
+              Total Duration: {' '}
+              <span className="text-green-500 ml-2">
+                {calculateTotalHours(programmeFlow).split('h')[0]} Hour & & {' '}
+                {calculateTotalHours(programmeFlow).split('h')[1].replace('m', '')} Minutes
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Dress Code */}
+        <section className={STYLES.section}>
+          <h2 className={STYLES.sectionTitle}>Dress Code</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            <div>
+              <label className="block mb-2 text-gray-400">Primary Color</label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className={STYLES.input}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block mb-2 text-gray-400">Secondary Color</label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className={STYLES.input}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block mb-2 text-gray-400">Quick Generate</label>
+              <Button
+                onClick={() => {
+                  setPrimaryColor(generateRandomColor())
+                  setSecondaryColor(generateRandomColor())
+                }}
+                className={`w-full ${STYLES.button.primary}`}
+              >
+                Random Colors
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Sermon Series */}
+        <section className={STYLES.section}>
+          <h2 className={STYLES.sectionTitle}>Sermon Series</h2>
+          <div className={STYLES.card}>
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block mb-2 text-gray-400">Series</label>
+                  <Input
+                    placeholder="Enter Series Name"
+                    value={sermonSeries}
+                    className={STYLES.input}
+                    onChange={(e) => {
+                      if (e.target.value === '' || lettersOnly(e.target.value)) {
+                        setSermonSeries(e.target.value)
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block mb-2 text-gray-400">Title</label>
+                  <Input
+                    placeholder="Enter Sermon Title"
+                    value={sermonTitle}
+                    className={STYLES.input}
+                    onChange={(e) => {
+                      if (e.target.value === '' || lettersOnly(e.target.value)) {
+                        setSermonTitle(e.target.value)
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-2 text-gray-400">Bible Verse</label>
+                <div className="flex gap-4">
+                  <div className="relative flex-1 bible-book-search">
+                    <Input
+                      placeholder="Book"
+                      value={bookSearch}
+                      className={STYLES.input}
+                      onChange={(e) => handleBookSearch(e.target.value)}
+                      onFocus={() => setIsBookDropdownOpen(true)}
+                    />
+                    {isBookDropdownOpen && filteredBooks.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto border border-[#333333]">
+                        {filteredBooks.map((bookName) => (
+                          <div
+                            key={bookName}
+                            className="px-3 py-2 hover:bg-[#383838] cursor-pointer"
+                            onClick={() => {
+                              setBookSearch(bookName)
+                              setBook(bookName)
+                              setIsBookDropdownOpen(false)
+                              setFilteredBooks([])
+                            }}
+                          >
+                            {bookName}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Input
+                    placeholder="Chapter"
+                    type="text"
+                    value={chapter}
+                    className={`${STYLES.input} w-24`}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^\d{0,3}$/.test(value)) {
+                        setChapter(value)
+                      }
+                    }}
+                  />
+                  <Input
+                    placeholder="Verse"
+                    type="text"
+                    value={verse}
+                    className={`${STYLES.input} w-24`}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (
+                        (value === '' || /^[0-9-]+$/.test(value)) &&
+                        (value.replace('-', '').length <= 5)
+                      ) {
+                        setVerse(value)
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
+        </section>
 
-          {/* Event Details */}
-          {renderEventDetails()}
+        {/* Set List */}
+        <section className={STYLES.section}>
+          <h2 className={STYLES.sectionTitle}>Set List</h2>
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            {renderCategoryInput('praise')}
+            {renderCategoryInput('worship')}
+            {renderCategoryInput('altarCall')}
+            {renderCategoryInput('revival')}
+          </div>
+          
+          {/* Songs Table */}
+          <div className={STYLES.card}>
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-gray-400">
+                  <th className="pb-2">Category</th>
+                  <th className="pb-2">Title</th>
+                  <th className="pb-2">Artist</th>
+                  <th className="pb-2">YouTube</th>
+                  <th className="pb-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(setList).every(([_, items]) => items.length === 0) ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-4 text-gray-400">
+                      No songs added yet
+                    </td>
+                  </tr>
+                ) : (
+                  Object.entries(setList).map(([category, items]) =>
+                    items.map((item, index) => (
+                      <tr key={`${category}-${index}`} className="border-t border-[#282828]">
+                        <td className="py-2 capitalize">
+                          {category === 'altarCall' ? 'Altar Call' : category}
+                        </td>
+                        <td className="py-2">{item.title}</td>
+                        <td className="py-2">{item.artist}</td>
+                        <td className="py-2">
+                          {item.youtubeLink && (
+                            <a 
+                              href={item.youtubeLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-green-500 hover:text-green-400"
+                            >
+                              View
+                            </a>
+                          )}
+                        </td>
+                        <td className="py-2">
+                          <Button
+                            onClick={() => deleteSetListItem(category as keyof typeof setList, index)}
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-          {/* Programme Flow */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Programme Flow</h2>
+        {/* Roles Section */}
+        <section className={STYLES.section}>
+          <h2 className={STYLES.sectionTitle}>Roles</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Sermon */}
             <div className={STYLES.card}>
-              {programmeFlow.map((item, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-2">
-                  <Input
-                    placeholder="Enter Programme Name"
-                    value={item.name}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      if (value === '' || (lettersOnly(value) && value.length <= 20)) {
-                        updateProgrammeItem(index, 'name', value)
-                      }
-                    }}
-                    maxLength={20}
-                    className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="time"
-                      value={item.startTime}
-                      onChange={(e) => updateProgrammeItem(index, 'startTime', e.target.value)}
-                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-time-picker-indicator]:hidden"
-                    />
-                    <span className="text-green-500">to</span>
-                    <Input
-                      type="time"
-                      value={item.endTime}
-                      onChange={(e) => updateProgrammeItem(index, 'endTime', e.target.value)}
-                      className="w-24 bg-[#282828] border-none hover:border-green-500 focus:border-green-500 text-green-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-time-picker-indicator]:hidden"
-                    />
-                  </div>
-                  <Button onClick={() => deleteProgrammeItem(index)} className="bg-red-500 hover:bg-red-600 transition-colors">
-                    <TrashIcon className="h-5 w-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                onClick={addProgrammeItem}
-                className={STYLES.button.primary}
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Add Programme Item
-              </Button>
+              <h3 className={STYLES.subsectionTitle}>Sermon</h3>
+              <div className="space-y-4">
+                <Select value={selectedPreacher} onValueChange={setSelectedPreacher}>
+                  <SelectTrigger className={STYLES.select}>
+                    <SelectValue placeholder="Preacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {preachers.map((preacher) => (
+                      <SelectItem key={preacher.id} value={preacher.id.toString()}>
+                        {preacher.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <div className="flex justify-end mt-4 text-gray-400">
-                Total Duration: {' '}
-                <span className="text-green-500 ml-2">
-                  {calculateTotalHours(programmeFlow).split('h')[0]} Hour & & {' '}
-                  {calculateTotalHours(programmeFlow).split('h')[1].replace('m', '')} Minutes
-                </span>
+                <Select value={selectedSupport} onValueChange={setSelectedSupport}>
+                  <SelectTrigger className={STYLES.select}>
+                    <SelectValue placeholder="Preaching Support" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {preachingSupport.map((person) => (
+                      <SelectItem key={person.id} value={person.id.toString()}>
+                        {person.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </section>
 
-          {/* Dress Code */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Dress Code</h2>
+            {/* Worship */}
             <div className={STYLES.card}>
-              <div className="grid grid-cols-3 gap-6">
+              <h3 className={STYLES.subsectionTitle}>Worship</h3>
+              <div className="space-y-4">
+                <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
+                  <SelectTrigger className={STYLES.select}>
+                    <SelectValue placeholder="Worship Leader" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {worshipLeaders
+                      .filter(leader => {
+                        const selectedAsVocalist = selectedVocalists.includes(leader.id.toString())
+                        return !selectedAsVocalist || selectedWorshipLeader === leader.id.toString()
+                      })
+                      .map((leader) => (
+                        <SelectItem key={leader.id} value={leader.id.toString()}>
+                          {leader.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+
                 <div>
-                  <label className="block mb-2 text-gray-400">Primary Color</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
-                    />
-                    <Input
-                      type="text"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className={STYLES.input}
-                    />
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
+                  <div className="space-y-2">
+                    {keyVocals.map((vocal, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="flex-grow">
+                          <Select
+                            value={selectedVocalists[index] || ""}
+                            onValueChange={(value) => {
+                              const newSelected = [...selectedVocalists]
+                              newSelected[index] = value
+                              setSelectedVocalists(newSelected)
+                            }}
+                          >
+                            <SelectTrigger className={STYLES.select}>
+                              <SelectValue placeholder={`Select ${vocal}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {vocalists
+                                .filter(vocalist => {
+                                  const selectedInOtherPosition = selectedVocalists
+                                    .filter((_, i) => i !== index)
+                                    .includes(vocalist.id.toString())
+                                  const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString()
+                                  return !selectedInOtherPosition && !selectedAsLeader
+                                })
+                                .map((vocalist) => (
+                                  <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
+                                    {vocalist.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedVocalists[index] && (
+                          <Button
+                            onClick={() => clearKeyVocal(index)}
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div>
-                  <label className="block mb-2 text-gray-400">Secondary Color</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
-                    />
-                    <Input
-                      type="text"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className={STYLES.input}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block mb-2 text-gray-400">Quick Generate</label>
                   <Button
                     onClick={() => {
-                      setPrimaryColor(generateRandomColor())
-                      setSecondaryColor(generateRandomColor())
+                      setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`])
+                      setSelectedVocalists(prev => [...prev, ''])
                     }}
-                    className={`w-full ${STYLES.button.primary}`}
+                    className={`mt-2 ${STYLES.button.primary}`}
                   >
-                    Random Colors
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Add Voice
                   </Button>
                 </div>
               </div>
             </div>
-          </section>
 
-          {/* Sermon Series */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Sermon Series</h2>
+            {/* Musicians */}
             <div className={STYLES.card}>
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block mb-2 text-gray-400">Series</label>
-                    <Input
-                      placeholder="Enter Series Name"
-                      value={sermonSeries}
-                      className={STYLES.input}
-                      onChange={(e) => {
-                        if (e.target.value === '' || lettersOnly(e.target.value)) {
-                          setSermonSeries(e.target.value)
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block mb-2 text-gray-400">Title</label>
-                    <Input
-                      placeholder="Enter Sermon Title"
-                      value={sermonTitle}
-                      className={STYLES.input}
-                      onChange={(e) => {
-                        if (e.target.value === '' || lettersOnly(e.target.value)) {
-                          setSermonTitle(e.target.value)
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
+              <h3 className={STYLES.subsectionTitle}>Musicians</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
+                  const availableMusicians = musicians.filter(m => {
+                    const playsInstrument = m.instrument === instrument
+                    const musicianName = m.name
+                    const isSelectedElsewhere = Object.entries(selectedMusicians).some(([otherInstrument, selectedId]) => {
+                      const selectedMusician = musicians.find(m => m.id.toString() === selectedId)
+                      return otherInstrument !== instrument && selectedMusician?.name === musicianName
+                    })
+                    return playsInstrument && !isSelectedElsewhere
+                  })
 
-                <div>
-                  <label className="block mb-2 text-gray-400">Bible Verse</label>
-                  <div className="flex gap-4">
-                    <div className="relative flex-1 bible-book-search">
-                      <Input
-                        placeholder="Book"
-                        value={bookSearch}
-                        className={STYLES.input}
-                        onChange={(e) => handleBookSearch(e.target.value)}
-                        onFocus={() => setIsBookDropdownOpen(true)}
-                      />
-                      {isBookDropdownOpen && filteredBooks.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto border border-[#333333]">
-                          {filteredBooks.map((bookName) => (
-                            <div
-                              key={bookName}
-                              className="px-3 py-2 hover:bg-[#383838] cursor-pointer"
-                              onClick={() => {
-                                setBookSearch(bookName)
-                                setBook(bookName)
-                                setIsBookDropdownOpen(false)
-                                setFilteredBooks([])
-                              }}
-                            >
-                              {bookName}
-                            </div>
-                          ))}
-                        </div>
+                  return (
+                    <div key={instrument} className="flex items-center gap-2">
+                      <div className="flex-grow">
+                        <Select
+                          value={selectedMusicians[instrument] || ""}
+                          onValueChange={(value) => {
+                            setSelectedMusicians(prev => ({
+                              ...prev,
+                              [instrument]: value
+                            }))
+                          }}
+                        >
+                          <SelectTrigger className={STYLES.select}>
+                            <SelectValue placeholder={instrument} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMusicians.length > 0 ? (
+                              availableMusicians.map((musician) => (
+                                <SelectItem key={musician.id} value={musician.id.toString()}>
+                                  {musician.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-musicians" disabled>
+                                No musicians available
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {selectedMusicians[instrument] && (
+                        <Button
+                          onClick={() => clearMusician(instrument)}
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                    <Input
-                      placeholder="Chapter"
-                      type="text"
-                      value={chapter}
-                      className={`${STYLES.input} w-24`}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        if (/^\d{0,3}$/.test(value)) {
-                          setChapter(value)
-                        }
-                      }}
-                    />
-                    <Input
-                      placeholder="Verse"
-                      type="text"
-                      value={verse}
-                      className={`${STYLES.input} w-24`}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        if (
-                          (value === '' || /^[0-9-]+$/.test(value)) &&
-                          (value.replace('-', '').length <= 5)
-                        ) {
-                          setVerse(value)
-                        }
-                      }}
-                    />
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Creatives */}
+            <div className={STYLES.card}>
+              <h3 className={STYLES.subsectionTitle}>Creatives</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
+                  const availableCreatives = creatives.filter(c => {
+                    const hasRole = c.role === role
+                    const creativeName = c.name
+                    const isSelectedElsewhere = Object.entries(selectedCreatives).some(([otherRole, selectedId]) => {
+                      const selectedCreative = creatives.find(c => c.id.toString() === selectedId)
+                      return otherRole !== role && selectedCreative?.name === creativeName
+                    })
+                    return hasRole && !isSelectedElsewhere
+                  })
+
+                  return (
+                    <div key={role} className="flex items-center gap-2">
+                      <div className="flex-grow">
+                        <Select
+                          value={selectedCreatives[role] || ""}
+                          onValueChange={(value) => {
+                            setSelectedCreatives(prev => ({
+                              ...prev,
+                              [role]: value
+                            }))
+                          }}
+                        >
+                          <SelectTrigger className={STYLES.select}>
+                            <SelectValue placeholder={role} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableCreatives.map((creative) => (
+                              <SelectItem key={creative.id} value={creative.id.toString()}>
+                                {creative.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {selectedCreatives[role] && (
+                        <Button
+                          onClick={() => clearCreative(role)}
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Summary Modal */}
+        {showSummary && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowSummary(false)
+              }
+            }}
+          >
+            <div className="flex flex-col gap-6">
+              <div ref={summaryRef} className={`${STYLES.summary.container} rounded-b-none border-b-0`}>
+                <h3 className="text-xl font-bold text-green-500 mb-4">TechScript</h3>
+                
+                {/* Event Details */}
+                <div className={STYLES.summary.section}>
+                  <h4 className={STYLES.summary.sectionTitle}>Event Details</h4>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Event Type</span>
+                    <span className={STYLES.summary.value}>: {getEventTypeDisplay()}</span>
+                  </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Date</span>
+                    <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : "Not set"}</span>
+                  </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Duration</span>
+                    <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
+                  </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Dress Code</span>
+                    <span className={STYLES.summary.value}>
+                      : <span className="inline-flex items-center gap-1">
+                          <span className="inline-flex items-center gap-1">
+                            <span 
+                              className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
+                              style={{ backgroundColor: primaryColor }}
+                            ></span>
+                            {primaryColor}
+                          </span>
+                          <span className="mx-3">&</span>
+                          <span className="inline-flex items-center gap-1">
+                            <span 
+                              className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
+                              style={{ backgroundColor: secondaryColor }}
+                            ></span>
+                            {secondaryColor}
+                          </span>
+                        </span>
+                    </span>
                   </div>
                 </div>
-              </div>
-            </div>
-          </section>
 
-          {/* Set List */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Set List</h2>
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {renderCategoryInput('praise')}
-              {renderCategoryInput('worship')}
-              {renderCategoryInput('altarCall')}
-              {renderCategoryInput('revival')}
-            </div>
-            
-            {/* Songs Table */}
-            <div className={STYLES.card}>
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-gray-400">
-                    <th className="pb-2">Category</th>
-                    <th className="pb-2">Title</th>
-                    <th className="pb-2">Artist</th>
-                    <th className="pb-2">YouTube</th>
-                    <th className="pb-2 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(setList).every(([_, items]) => items.length === 0) ? (
-                    <tr>
-                      <td colSpan={5} className="text-center py-4 text-gray-400">
-                        No songs added yet
-                      </td>
-                    </tr>
-                  ) : (
-                    Object.entries(setList).map(([category, items]) =>
-                      items.map((item, index) => (
-                        <tr key={`${category}-${index}`} className="border-t border-[#282828]">
-                          <td className="py-2 capitalize">
-                            {category === 'altarCall' ? 'Altar Call' : category}
-                          </td>
-                          <td className="py-2">{item.title}</td>
-                          <td className="py-2">{item.artist}</td>
-                          <td className="py-2">
-                            {item.youtubeLink && (
-                              <a 
-                                href={item.youtubeLink} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-green-500 hover:text-green-400"
-                              >
-                                View
-                              </a>
-                            )}
-                          </td>
-                          <td className="py-2">
-                            <Button
-                              onClick={() => deleteSetListItem(category as keyof typeof setList, index)}
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-500 hover:text-red-600 hover:bg-transparent"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Roles Section */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Roles</h2>
-            <div className="grid grid-cols-2 gap-6">
-              {/* Sermon */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Sermon</h3>
-                <div className="space-y-4">
-                  <Select value={selectedPreacher} onValueChange={setSelectedPreacher}>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Preacher" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {preachers.map((preacher) => (
-                        <SelectItem key={preacher.id} value={preacher.id.toString()}>
-                          {preacher.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={selectedSupport} onValueChange={setSelectedSupport}>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Preaching Support" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {preachingSupport.map((person) => (
-                        <SelectItem key={person.id} value={person.id.toString()}>
-                          {person.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Programme Flow */}
+                <div className={STYLES.summary.section}>
+                  <h4 className={STYLES.summary.sectionTitle}>Programme Flow</h4>
+                  {programmeFlow.map((item, index) => (
+                    <div key={index} className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>{item.name}</span>
+                      <span className={STYLES.summary.value}>: {formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
+                    </div>
+                  ))}
                 </div>
-              </div>
 
-              {/* Worship */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Worship</h3>
-                <div className="space-y-4">
-                  <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Worship Leader" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {worshipLeaders
-                        .filter(leader => {
-                          const selectedAsVocalist = selectedVocalists.includes(leader.id.toString())
-                          return !selectedAsVocalist || selectedWorshipLeader === leader.id.toString()
-                        })
-                        .map((leader) => (
-                          <SelectItem key={leader.id} value={leader.id.toString()}>
-                            {leader.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                {/* Sermon Details */}
+                <div className={STYLES.summary.section}>
+                  <h4 className={STYLES.summary.sectionTitle}>Sermon Details</h4>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Series</span>
+                    <span className={STYLES.summary.value}>: {sermonSeries || "Not set"}</span>
+                  </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Title</span>
+                    <span className={STYLES.summary.value}>: {sermonTitle || "Not set"}</span>
+                  </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Bible Verse</span>
+                    <span className={STYLES.summary.value}>: {book} {chapter}:{verse}</span>
+                  </div>
+                </div>
 
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
-                    <div className="space-y-2">
-                      {keyVocals.map((vocal, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div className="flex-grow">
-                            <Select
-                              value={selectedVocalists[index] || ""}
-                              onValueChange={(value) => {
-                                const newSelected = [...selectedVocalists]
-                                newSelected[index] = value
-                                setSelectedVocalists(newSelected)
-                              }}
-                            >
-                              <SelectTrigger className={STYLES.select}>
-                                <SelectValue placeholder={`Select ${vocal}`} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {vocalists
-                                  .filter(vocalist => {
-                                    const selectedInOtherPosition = selectedVocalists
-                                      .filter((_, i) => i !== index)
-                                      .includes(vocalist.id.toString())
-                                    const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString()
-                                    return !selectedInOtherPosition && !selectedAsLeader
-                                  })
-                                  .map((vocalist) => (
-                                    <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
-                                      {vocalist.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {selectedVocalists[index] && (
-                            <Button
-                              onClick={() => clearKeyVocal(index)}
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-500 hover:text-red-600 hover:bg-transparent"
-                            >
-                              <XMarkIcon className="h-4 w-4" />
-                            </Button>
-                          )}
+                {/* Team */}
+                <div className={STYLES.summary.section}>
+                  <h4 className={STYLES.summary.sectionTitle}>Team</h4>
+                  
+                  <div className={STYLES.summary.teamGrid.container}>
+                    {/* Preaching */}
+                    <div className={STYLES.summary.teamGrid.section}>
+                      <div className={STYLES.summary.teamGrid.title}>Preaching</div>
+                      <div className={STYLES.summary.row}>
+                        <span className={STYLES.summary.label}>Preacher</span>
+                        <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name || "Not selected"}</span>
+                      </div>
+                      <div className={STYLES.summary.row}>
+                        <span className={STYLES.summary.label}>Support</span>
+                        <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || "Not selected"}</span>
+                      </div>
+                    </div>
+
+                    {/* Worship */}
+                    <div className={STYLES.summary.teamGrid.section}>
+                      <div className={STYLES.summary.teamGrid.title}>Worship</div>
+                      <div className={STYLES.summary.row}>
+                        <span className={STYLES.summary.label}>Worship Leader</span>
+                        <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || "Not selected"}</span>
+                      </div>
+                    </div>
+
+                    {/* Creatives */}
+                    <div className={STYLES.summary.teamGrid.section}>
+                      <div className={STYLES.summary.teamGrid.title}>Creatives</div>
+                      {Object.entries(selectedCreatives).map(([role, id]) => id && (
+                        <div key={role} className={STYLES.summary.row}>
+                          <span className={STYLES.summary.label}>{role}</span>
+                          <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
                         </div>
                       ))}
                     </div>
-                    <Button
-                      onClick={() => {
-                        setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`])
-                        setSelectedVocalists(prev => [...prev, ''])
-                      }}
-                      className={`mt-2 ${STYLES.button.primary}`}
-                    >
-                      <PlusIcon className="h-5 w-5 mr-2" />
-                      Add Voice
-                    </Button>
+
+                    {/* Key Vocals */}
+                    <div className={STYLES.summary.teamGrid.section}>
+                      <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
+                      {selectedVocalists.map((id, index) => id && (
+                        <div key={index} className={STYLES.summary.row}>
+                          <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
+                          <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Musicians */}
+                    <div className={STYLES.summary.teamGrid.section}>
+                      <div className={STYLES.summary.teamGrid.title}>Musicians</div>
+                      {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
+                        <div key={instrument} className={STYLES.summary.row}>
+                          <span className={STYLES.summary.label}>{instrument}</span>
+                          <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Musicians */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Musicians</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
-                    const availableMusicians = musicians.filter(m => {
-                      const playsInstrument = m.instrument === instrument
-                      const musicianName = m.name
-                      const isSelectedElsewhere = Object.entries(selectedMusicians).some(([otherInstrument, selectedId]) => {
-                        const selectedMusician = musicians.find(m => m.id.toString() === selectedId)
-                        return otherInstrument !== instrument && selectedMusician?.name === musicianName
-                      })
-                      return playsInstrument && !isSelectedElsewhere
-                    })
-
-                    return (
-                      <div key={instrument} className="flex items-center gap-2">
-                        <div className="flex-grow">
-                          <Select
-                            value={selectedMusicians[instrument] || ""}
-                            onValueChange={(value) => {
-                              setSelectedMusicians(prev => ({
-                                ...prev,
-                                [instrument]: value
-                              }))
-                            }}
-                          >
-                            <SelectTrigger className={STYLES.select}>
-                              <SelectValue placeholder={instrument} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableMusicians.length > 0 ? (
-                                availableMusicians.map((musician) => (
-                                  <SelectItem key={musician.id} value={musician.id.toString()}>
-                                    {musician.name}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="no-musicians" disabled>
-                                  No musicians available
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {selectedMusicians[instrument] && (
-                          <Button
-                            onClick={() => clearMusician(instrument)}
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
-                          >
-                            <XMarkIcon className="h-4 w-4" />
-                          </Button>
-                        )}
+                {/* Set List */}
+                <div className={STYLES.summary.section}>
+                  <h4 className={STYLES.summary.sectionTitle}>Set List</h4>
+                  {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
+                    <div key={category} className={STYLES.summary.setList.section}>
+                      <div className={STYLES.summary.setList.category}>
+                        {category === 'altarCall' ? 'Altar Call' : category.charAt(0).toUpperCase() + category.slice(1)}
                       </div>
-                    )
-                  })}
+                      {songs.map((song, index) => (
+                        <div key={index} className={STYLES.summary.setList.row}>
+                          <span className={STYLES.summary.setList.label}>
+                            {index + 1}. {song.title}
+                          </span>
+                          <span className={STYLES.summary.setList.value}>
+                            : {song.artist}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Creatives */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Creatives</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
-                    const availableCreatives = creatives.filter(c => {
-                      const hasRole = c.role === role
-                      const creativeName = c.name
-                      const isSelectedElsewhere = Object.entries(selectedCreatives).some(([otherRole, selectedId]) => {
-                        const selectedCreative = creatives.find(c => c.id.toString() === selectedId)
-                        return otherRole !== role && selectedCreative?.name === creativeName
-                      })
-                      return hasRole && !isSelectedElsewhere
-                    })
-
-                    return (
-                      <div key={role} className="flex items-center gap-2">
-                        <div className="flex-grow">
-                          <Select
-                            value={selectedCreatives[role] || ""}
-                            onValueChange={(value) => {
-                              setSelectedCreatives(prev => ({
-                                ...prev,
-                                [role]: value
-                              }))
-                            }}
-                          >
-                            <SelectTrigger className={STYLES.select}>
-                              <SelectValue placeholder={role} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableCreatives.map((creative) => (
-                                <SelectItem key={creative.id} value={creative.id.toString()}>
-                                  {creative.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {selectedCreatives[role] && (
-                          <Button
-                            onClick={() => clearCreative(role)}
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
-                          >
-                            <XMarkIcon className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+              {/* Screenshot Button */}
+              <div className={`${STYLES.card} rounded-t-none border-t-0 mt-[-1px]`}>
+                <Button 
+                  onClick={() => captureAndCopyToClipboard(summaryRef)}
+                  className={`${STYLES.button.primary} w-full`}
+                >
+                  Take Screenshot
+                </Button>
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+        )}
+
+        {/* Notification */}
+        {showNotification && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-notification z-50">
+            Screenshot copied! Press Ctrl+V to paste
+          </div>
+        )}
       </main>
 
       {/* Create Button */}
@@ -1325,192 +1507,6 @@ export default function ServiceSchedule(): JSX.Element {
           Create
         </Button>
       </div>
-
-      {/* Summary Modal */}
-      {showSummary && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowSummary(false)
-            }
-          }}
-        >
-          <div className="flex flex-col gap-6">
-            <div ref={summaryRef} className={`${STYLES.summary.container} rounded-b-none border-b-0`}>
-              <h3 className="text-xl font-bold text-green-500 mb-4">TechScript</h3>
-              
-              {/* Event Details */}
-              <div className={STYLES.summary.section}>
-                <h4 className={STYLES.summary.sectionTitle}>Event Details</h4>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Event Type</span>
-                  <span className={STYLES.summary.value}>: {getEventTypeDisplay()}</span>
-                </div>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Date</span>
-                  <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : "Not set"}</span>
-                </div>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Duration</span>
-                  <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
-                </div>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Dress Code</span>
-                  <span className={STYLES.summary.value}>
-                    : <span className="inline-flex items-center gap-1">
-                        <span className="inline-flex items-center gap-1">
-                          <span 
-                            className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
-                            style={{ backgroundColor: primaryColor }}
-                          ></span>
-                          {primaryColor}
-                        </span>
-                        <span className="mx-3">&</span>
-                        <span className="inline-flex items-center gap-1">
-                          <span 
-                            className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
-                            style={{ backgroundColor: secondaryColor }}
-                          ></span>
-                          {secondaryColor}
-                        </span>
-                      </span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Programme Flow */}
-              <div className={STYLES.summary.section}>
-                <h4 className={STYLES.summary.sectionTitle}>Programme Flow</h4>
-                {programmeFlow.map((item, index) => (
-                  <div key={index} className={STYLES.summary.row}>
-                    <span className={STYLES.summary.label}>{item.name}</span>
-                    <span className={STYLES.summary.value}>: {formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Sermon Details */}
-              <div className={STYLES.summary.section}>
-                <h4 className={STYLES.summary.sectionTitle}>Sermon Details</h4>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Series</span>
-                  <span className={STYLES.summary.value}>: {sermonSeries || "Not set"}</span>
-                </div>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Title</span>
-                  <span className={STYLES.summary.value}>: {sermonTitle || "Not set"}</span>
-                </div>
-                <div className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>Bible Verse</span>
-                  <span className={STYLES.summary.value}>: {book} {chapter}:{verse}</span>
-                </div>
-              </div>
-
-              {/* Team */}
-              <div className={STYLES.summary.section}>
-                <h4 className={STYLES.summary.sectionTitle}>Team</h4>
-                
-                <div className={STYLES.summary.teamGrid.container}>
-                  {/* Preaching */}
-                  <div className={STYLES.summary.teamGrid.section}>
-                    <div className={STYLES.summary.teamGrid.title}>Preaching</div>
-                    <div className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>Preacher</span>
-                      <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name || "Not selected"}</span>
-                    </div>
-                    <div className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>Support</span>
-                      <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || "Not selected"}</span>
-                    </div>
-                  </div>
-
-                  {/* Worship */}
-                  <div className={STYLES.summary.teamGrid.section}>
-                    <div className={STYLES.summary.teamGrid.title}>Worship</div>
-                    <div className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>Worship Leader</span>
-                      <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || "Not selected"}</span>
-                    </div>
-                  </div>
-
-                  {/* Creatives */}
-                  <div className={STYLES.summary.teamGrid.section}>
-                    <div className={STYLES.summary.teamGrid.title}>Creatives</div>
-                    {Object.entries(selectedCreatives).map(([role, id]) => id && (
-                      <div key={role} className={STYLES.summary.row}>
-                        <span className={STYLES.summary.label}>{role}</span>
-                        <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Key Vocals */}
-                  <div className={STYLES.summary.teamGrid.section}>
-                    <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
-                    {selectedVocalists.map((id, index) => id && (
-                      <div key={index} className={STYLES.summary.row}>
-                        <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
-                        <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Musicians */}
-                  <div className={STYLES.summary.teamGrid.section}>
-                    <div className={STYLES.summary.teamGrid.title}>Musicians</div>
-                    {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
-                      <div key={instrument} className={STYLES.summary.row}>
-                        <span className={STYLES.summary.label}>{instrument}</span>
-                        <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Set List */}
-              <div className={STYLES.summary.section}>
-                <h4 className={STYLES.summary.sectionTitle}>Set List</h4>
-                {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
-                  <div key={category} className={STYLES.summary.setList.section}>
-                    <div className={STYLES.summary.setList.category}>
-                      {category === 'altarCall' ? 'Altar Call' : category.charAt(0).toUpperCase() + category.slice(1)}
-                    </div>
-                    {songs.map((song, index) => (
-                      <div key={index} className={STYLES.summary.setList.row}>
-                        <span className={STYLES.summary.setList.label}>
-                          {index + 1}. {song.title}
-                        </span>
-                        <span className={STYLES.summary.setList.value}>
-                          : {song.artist}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Screenshot Button */}
-            <div className={`${STYLES.card} rounded-t-none border-t-0 mt-[-1px]`}>
-              <Button 
-                onClick={() => captureAndCopyToClipboard(summaryRef)}
-                className={`${STYLES.button.primary} w-full`}
-              >
-                Take Screenshot
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notification */}
-      {showNotification && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-notification z-50">
-          Screenshot copied! Press Ctrl+V to paste
-        </div>
-      )}
     </div>
   )
 }
