@@ -29,6 +29,15 @@ type MusicDetails = {
   spotifyUrl?: string;
 }
 
+// Add this helper function
+const formatTime = (time: string) => {
+  const [hours, minutes] = time.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const formattedHour = hour % 12 || 12;
+  return `${formattedHour}:${minutes} ${ampm}`;
+};
+
 // Add these style constants at the top of the file
 const STYLES = {
   input: "w-full bg-[#282828] border-none focus:ring-2 focus:ring-green-500 hover:bg-[#323232] transition-colors",
@@ -42,6 +51,26 @@ const STYLES = {
   section: "mb-12", // Increased spacing between sections
   sectionTitle: "text-2xl font-bold mb-6 text-white",
   subsectionTitle: "text-xl font-semibold mb-4 text-white",
+  summary: {
+    container: "bg-[#1E1E1E] rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto font-mono",
+    section: "p-6 bg-[#282828] rounded-lg mb-6",
+    sectionTitle: "text-lg font-semibold text-green-500 mb-4",
+    label: "text-white inline-block w-48",
+    value: "text-gray-400 flex-1",
+    row: "mb-2 flex items-center",
+    teamGrid: {
+      container: "grid grid-cols-2 gap-x-12 gap-y-6",
+      section: "space-y-2",
+      title: "text-green-500 mb-2",
+    },
+    setList: {
+      section: "mb-4 last:mb-0",
+      category: "text-green-500 mb-2",
+      row: "mb-2 flex items-center",
+      label: "text-white inline-block w-[26rem]",
+      value: "text-gray-400 flex-1",
+    }
+  }
 }
 
 // Initialize Spotify API (outside component)
@@ -1550,213 +1579,147 @@ export default function ServiceSchedule() {
 
       {showSummary && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#1E1E1E] rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold text-white mb-6">Summary</h3>
+          <div className={STYLES.summary.container}>
+            <h3 className="text-2xl font-bold text-green-500 mb-6">Schedule Summary</h3>
             
-            {/* Event Details in a more compact layout */}
-            <div className="space-y-6">
-              {/* Basic Info - 2 columns */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-[#282828] rounded-lg">
-                <div>
-                  <span className="text-gray-400">Event Type:</span>
-                  <p className="font-medium">{getEventTypeDisplay()}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400">Date:</span>
-                  <p className="font-medium">{eventDate ? format(eventDate, "PPP") : "Not set"}</p>
-                </div>
+            {/* Basic Info */}
+            <div className={STYLES.summary.section}>
+              <h4 className={STYLES.summary.sectionTitle}>Event Details</h4>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Event Type</span>
+                <span className={STYLES.summary.value}>: {getEventTypeDisplay()}</span>
               </div>
-
-              {/* Programme Flow - Compact table */}
-              <div className="p-4 bg-[#282828] rounded-lg">
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Programme Flow</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {programmeFlow.map((item, index) => (
-                        <tr key={index} className="border-b border-[#333333] last:border-0">
-                          <td className="py-1 pr-4">{item.name}</td>
-                          <td className="py-1 text-right text-gray-400">
-                            {item.startTime} - {item.endTime}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Date</span>
+                <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : "Not set"}</span>
               </div>
-
-              {/* Dress Code - Inline display */}
-              <div className="p-4 bg-[#282828] rounded-lg">
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Dress Code</h4>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: primaryColor }}></div>
-                    <span className="text-sm">Primary: {primaryColor}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: secondaryColor }}></div>
-                    <span className="text-sm">Secondary: {secondaryColor}</span>
-                  </div>
-                </div>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Duration</span>
+                <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
               </div>
+            </div>
 
-              {/* Sermon Details - Compact grid */}
-              <div className="p-4 bg-[#282828] rounded-lg">
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Sermon Details</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-400">Series:</span>
-                    <p>{sermonSeries || "Not set"}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Title:</span>
-                    <p>{sermonTitle || "Not set"}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-400">Bible Verse:</span>
-                    <p>{book} {chapter}:{verse}</p>
-                  </div>
+            {/* Programme Flow */}
+            <div className={STYLES.summary.section}>
+              <h4 className={STYLES.summary.sectionTitle}>Programme Flow</h4>
+              {programmeFlow.map((item, index) => (
+                <div key={index} className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>{item.name}</span>
+                  <span className={STYLES.summary.value}>: {formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
                 </div>
+              ))}
+            </div>
+
+            {/* Sermon Details */}
+            <div className={STYLES.summary.section}>
+              <h4 className={STYLES.summary.sectionTitle}>Sermon Details</h4>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Series</span>
+                <span className={STYLES.summary.value}>: {sermonSeries || "Not set"}</span>
               </div>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Title</span>
+                <span className={STYLES.summary.value}>: {sermonTitle || "Not set"}</span>
+              </div>
+              <div className={STYLES.summary.row}>
+                <span className={STYLES.summary.label}>Bible Verse</span>
+                <span className={STYLES.summary.value}>: {book} {chapter}:{verse}</span>
+              </div>
+            </div>
 
-              {/* Team - Compact columns */}
-              <div className="p-4 bg-[#282828] rounded-lg">
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Team</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  {/* Preaching */}
-                  <div>
-                    <h5 className="font-medium mb-1">Preaching</h5>
-                    <div className="space-y-1">
-                      <div>
-                        <span className="text-gray-400">Preacher: </span>
-                        <span>
-                          {console.log('Selected Preacher ID:', selectedPreacher)}
-                          {console.log('All Preachers:', preachers)}
-                          {selectedPreacher ? 
-                            preachers.find(p => {
-                              console.log('Comparing:', p.id.toString(), selectedPreacher);
-                              return p.id.toString() === selectedPreacher;
-                            })?.name || 'Not found' 
-                            : 'Not selected'
-                          }
-                        </span>
-                      </div>
-                      <p>
-                        <span className="text-gray-400">Support: </span>
-                        {console.log('Selected Support ID:', selectedSupport)}
-                        {console.log('Preaching Support Data:', preachingSupport)}
-                        {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || 'Not selected'}
-                      </p>
-                    </div>
+            {/* Team */}
+            <div className={STYLES.summary.section}>
+              <h4 className={STYLES.summary.sectionTitle}>Team</h4>
+              
+              <div className={STYLES.summary.teamGrid.container}>
+                {/* Column 1 Row 1: Preaching */}
+                <div className={STYLES.summary.teamGrid.section}>
+                  <div className={STYLES.summary.teamGrid.title}>Preaching</div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Preacher</span>
+                    <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name || "Not selected"}</span>
                   </div>
-
-                  {/* Worship */}
-                  <div>
-                    <h5 className="font-medium mb-1">Worship</h5>
-                    <div className="space-y-1">
-                      <p><span className="text-gray-400">Leader:</span> {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || 'Not selected'}</p>
-                      {selectedVocalists.map((id, index) => id && (
-                        <p key={index}><span className="text-gray-400">Voice {index + 1}:</span> {vocalists.find(v => v.id.toString() === id)?.name}</p>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Musicians & Creatives */}
-                  <div>
-                    <h5 className="font-medium mb-1">Musicians & Creatives</h5>
-                    <div className="space-y-1">
-                      {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
-                        <p key={instrument}><span className="text-gray-400">{instrument}:</span> {musicians.find(m => m.id.toString() === id)?.name}</p>
-                      ))}
-                      {Object.entries(selectedCreatives).map(([role, id]) => id && (
-                        <p key={role}><span className="text-gray-400">{role}:</span> {creatives.find(c => c.id.toString() === id)?.name}</p>
-                      ))}
-                    </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Support</span>
+                    <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || "Not selected"}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Summary Modal Content */}
-              <div className="p-4 bg-[#282828] rounded-lg">
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Set List</h4>
-                <div className="space-y-4">
-                  {/* Praise */}
-                  {setList.praise.length > 0 && (
-                    <div>
-                      <h5 className="text-gray-400 mb-1">Praise</h5>
-                      {setList.praise.map((song, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                          <span>{song.title}</span>
-                          <span className="text-gray-400">{song.artist}</span>
-                        </div>
-                      ))}
+                {/* Column 2 Row 1: Worship */}
+                <div className={STYLES.summary.teamGrid.section}>
+                  <div className={STYLES.summary.teamGrid.title}>Worship</div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Worship Leader</span>
+                    <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || "Not selected"}</span>
+                  </div>
+                </div>
+
+                {/* Column 1 Row 2: Creatives */}
+                <div className={STYLES.summary.teamGrid.section}>
+                  <div className={STYLES.summary.teamGrid.title}>Creatives</div>
+                  {Object.entries(selectedCreatives).map(([role, id]) => id && (
+                    <div key={role} className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>{role}</span>
+                      <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
                     </div>
-                  )}
+                  ))}
+                </div>
 
-                  {/* Worship */}
-                  {setList.worship.length > 0 && (
-                    <div>
-                      <h5 className="text-gray-400 mb-1">Worship</h5>
-                      {setList.worship.map((song, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                          <span>{song.title}</span>
-                          <span className="text-gray-400">{song.artist}</span>
-                        </div>
-                      ))}
+                {/* Column 2 Row 2: Key Vocals */}
+                <div className={STYLES.summary.teamGrid.section}>
+                  <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
+                  {selectedVocalists.map((id, index) => id && (
+                    <div key={index} className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
+                      <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
                     </div>
-                  )}
+                  ))}
+                </div>
 
-                  {/* Altar Call */}
-                  {setList.altarCall.length > 0 && (
-                    <div>
-                      <h5 className="text-gray-400 mb-1">Altar Call</h5>
-                      {setList.altarCall.map((song, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                          <span>{song.title}</span>
-                          <span className="text-gray-400">{song.artist}</span>
-                        </div>
-                      ))}
+                {/* Column 2 Row 3: Musicians */}
+                <div className={STYLES.summary.teamGrid.section}>
+                  <div className={STYLES.summary.teamGrid.title}>Musicians</div>
+                  {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
+                    <div key={instrument} className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>{instrument}</span>
+                      <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
                     </div>
-                  )}
-
-                  {/* Revival */}
-                  {setList.revival.length > 0 && (
-                    <div>
-                      <h5 className="text-gray-400 mb-1">Revival</h5>
-                      {setList.revival.map((song, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                          <span>{song.title}</span>
-                          <span className="text-gray-400">{song.artist}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Show message if no songs added */}
-                  {!setList.praise.length && !setList.worship.length && 
-                   !setList.altarCall.length && !setList.revival.length && (
-                    <div className="text-gray-400 text-sm">No songs added to the set list</div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
 
+            {/* Set List */}
+            <div className={STYLES.summary.section}>
+              <h4 className={STYLES.summary.sectionTitle}>Set List</h4>
+              {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
+                <div key={category} className={STYLES.summary.setList.section}>
+                  <div className={STYLES.summary.setList.category}>
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </div>
+                  {songs.map((song, index) => (
+                    <div key={index} className={STYLES.summary.setList.row}>
+                      <span className={STYLES.summary.setList.label}>
+                        {index + 1}. {song.title}
+                      </span>
+                      <span className={STYLES.summary.setList.value}>
+                        : {song.artist}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
             {/* Action Buttons */}
             <div className="flex gap-4 mt-6">
-              <Button 
-                onClick={() => setShowSummary(false)} 
-                className={STYLES.button.secondary}
-              >
+              <Button onClick={() => setShowSummary(false)} className={STYLES.button.secondary}>
                 Edit
               </Button>
-              <Button 
-                onClick={() => {
-                  setShowSummary(false);
-                  // Add your create logic here
-                }} 
-                className={`${STYLES.button.primary} flex-1`}
-              >
+              <Button onClick={() => {
+                setShowSummary(false);
+                // Add your create logic here
+              }} className={`${STYLES.button.primary} flex-1`}>
                 Confirm & Create
               </Button>
             </div>
