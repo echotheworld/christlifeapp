@@ -62,6 +62,9 @@ type CategoryInputs = {
   youtubeLink: string
 }
 
+// Move this type definition before the component and other state declarations
+type SetListCategories = 'praise' | 'worship' | 'altarCall' | 'revival'
+
 // Initialize Spotify API
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
@@ -97,14 +100,14 @@ const formatTime = (time: string) => {
 
 const lettersOnly = (str: string) => /^[A-Za-z\s]+$/.test(str)
 
-const debounce = <T extends (...args: any[]) => void>(
-  func: T,
+const debounce = <T extends string>(
+  func: (category: T, query: string) => Promise<void> | void,
   wait: number
-): ((...args: Parameters<T>) => void) => {
+): (category: T, query: string) => void => {
   let timeout: NodeJS.Timeout
-  return (...args: Parameters<T>) => {
+  return (category: T, query: string) => {
     clearTimeout(timeout)
-    timeout = setTimeout(() => func(...args), wait)
+    timeout = setTimeout(() => func(category, query), wait)
   }
 }
 
@@ -143,8 +146,68 @@ const STYLES = {
   }
 }
 
+// Add this type definition near your other types at the top of the file
+type Database = {
+  public: {
+    Tables: {
+      preachers: {
+        Row: {
+          id: string
+          name: string
+        }
+      }
+      preaching_support: {
+        Row: {
+          id: string
+          name: string
+        }
+      }
+      worship_leaders: {
+        Row: {
+          id: string
+          name: string
+        }
+      }
+      vocalists: {
+        Row: {
+          id: string
+          name: string
+        }
+      }
+      musicians: {
+        Row: {
+          id: string
+          name: string
+          instrument: string
+        }
+      }
+      creatives: {
+        Row: {
+          id: string
+          name: string
+          role: string
+        }
+      }
+    }
+  }
+}
+
+// Add this interface for Spotify API track type
+interface SpotifyApiTrack {
+  id: string
+  name: string
+  artists: Array<{ name: string }>
+  album: {
+    name: string
+    images: Array<{ url: string }>
+  }
+  external_urls: {
+    spotify: string
+  }
+}
+
 // Main component
-export default function ServiceSchedule() {
+export default function ServiceSchedule(): JSX.Element {
   // State
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
   const [eventDate, setEventDate] = useState<Date>()
@@ -155,7 +218,7 @@ export default function ServiceSchedule() {
   const [programmeFlow, setProgrammeFlow] = useState<ProgrammeItem[]>([
     { name: 'Countdown Begins', startTime: '08:55', endTime: '09:00' }
   ])
-  const [setList, setSetList] = useState<Record<string, SetListItem[]>>({
+  const [setList, setSetList] = useState<Record<SetListCategories, SetListItem[]>>({
     praise: [],
     worship: [],
     altarCall: [],
@@ -165,20 +228,20 @@ export default function ServiceSchedule() {
   const [showSummary, setShowSummary] = useState(false)
   const [showNotification, setShowNotification] = useState(false)
   const [open, setOpen] = useState(false)
-  const [suggestions, setSuggestions] = useState<Record<string, SpotifyTrack[]>>({
+  const [suggestions, setSuggestions] = useState<Record<SetListCategories, SpotifyTrack[]>>({
     praise: [],
     worship: [],
     altarCall: [],
     revival: []
   })
-  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({
+  const [isLoading, setIsLoading] = useState<Record<SetListCategories, boolean>>({
     praise: false,
     worship: false,
     altarCall: false,
     revival: false
   })
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const [inputs, setInputs] = useState<Record<string, CategoryInputs>>({
+  const [inputs, setInputs] = useState<Record<SetListCategories, CategoryInputs>>({
     praise: { title: '', artist: '', youtubeLink: '' },
     worship: { title: '', artist: '', youtubeLink: '' },
     altarCall: { title: '', artist: '', youtubeLink: '' },
@@ -219,43 +282,55 @@ export default function ServiceSchedule() {
   useEffect(() => {
     const fetchRoleData = async () => {
       try {
-        const { data: preachersData } = await supabase
+        const { data: preachersData, error: preachersError } = await supabase
           .from('preachers')
           .select('id, name')
-          .order('id')
+          .returns<Database['public']['Tables']['preachers']['Row'][]>()
+        
+        if (preachersError) throw preachersError
         setPreachers(preachersData || [])
 
-        const { data: supportData } = await supabase
+        const { data: supportData, error: supportError } = await supabase
           .from('preaching_support')
           .select('id, name')
-          .order('id')
+          .returns<Database['public']['Tables']['preaching_support']['Row'][]>()
+        
+        if (supportError) throw supportError
         setPreachingSupport(supportData || [])
 
-        const { data: worshipData } = await supabase
+        const { data: worshipData, error: worshipError } = await supabase
           .from('worship_leaders')
           .select('id, name')
-          .order('id')
+          .returns<Database['public']['Tables']['worship_leaders']['Row'][]>()
+        
+        if (worshipError) throw worshipError
         setWorshipLeaders(worshipData || [])
 
-        const { data: vocalistsData } = await supabase
+        const { data: vocalistsData, error: vocalistsError } = await supabase
           .from('vocalists')
           .select('id, name')
-          .order('id')
+          .returns<Database['public']['Tables']['vocalists']['Row'][]>()
+        
+        if (vocalistsError) throw vocalistsError
         setVocalists(vocalistsData || [])
 
-        const { data: musiciansData } = await supabase
+        const { data: musiciansData, error: musiciansError } = await supabase
           .from('musicians')
           .select('id, name, instrument')
-          .order('id')
+          .returns<Database['public']['Tables']['musicians']['Row'][]>()
+        
+        if (musiciansError) throw musiciansError
         setMusicians(musiciansData || [])
 
-        const { data: creativesData } = await supabase
+        const { data: creativesData, error: creativesError } = await supabase
           .from('creatives')
           .select('id, name, role')
-          .order('id')
+          .returns<Database['public']['Tables']['creatives']['Row'][]>()
+        
+        if (creativesError) throw creativesError
         setCreatives(creativesData || [])
       } catch (error) {
-        console.error('Error fetching role data:', error)
+        console.error('Error fetching role data:', error instanceof Error ? error.message : String(error))
       }
     }
 
@@ -317,11 +392,11 @@ export default function ServiceSchedule() {
     }
   }
 
-  const handleCreate = () => {
+  const handleCreate = (): void => {
     setShowSummary(true)
   }
 
-  const handleBookSearch = (value: string) => {
+  const handleBookSearch = (value: string): void => {
     setBookSearch(value)
     
     if (value.trim() === '') {
@@ -427,7 +502,7 @@ export default function ServiceSchedule() {
       }
 
       const results = await spotifyApi.searchTracks(query, { limit: 5 })
-      const tracks: SpotifyTrack[] = results.body.tracks?.items.map(track => ({
+      const tracks: SpotifyTrack[] = results.body.tracks?.items.map((track: SpotifyApiTrack) => ({
         id: track.id,
         title: track.name,
         artist: track.artists.map(artist => artist.name).join(', '),
@@ -449,8 +524,10 @@ export default function ServiceSchedule() {
     if (ref.current) {
       try {
         const colorBoxes = ref.current.querySelectorAll('.color-box')
-        colorBoxes.forEach((box: HTMLElement) => {
-          box.style.transform = 'translateY(4px)'
+        colorBoxes.forEach((box) => {
+          if (box instanceof HTMLElement) {
+            box.style.transform = 'translateY(4px)'
+          }
         })
 
         const scale = 4
@@ -469,8 +546,10 @@ export default function ServiceSchedule() {
 
         const canvas = await html2canvas(ref.current, options)
 
-        colorBoxes.forEach((box: HTMLElement) => {
-          box.style.transform = 'translateY(2px)'
+        colorBoxes.forEach((box) => {
+          if (box instanceof HTMLElement) {
+            box.style.transform = 'translateY(2px)'
+          }
         })
 
         const blob = await new Promise<Blob>((resolve) => {
