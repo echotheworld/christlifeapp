@@ -1227,12 +1227,17 @@ export default function ServiceSchedule(): JSX.Element {
                               <SelectValue placeholder={instrument} />
                             </SelectTrigger>
                             <SelectContent>
-                              {availableMusicians.map((musician) => (
-                                <SelectItem key={musician.id} value={musician.id.toString()}>
-                                  {musician.name}
-                                
+                              {availableMusicians.length > 0 ? (
+                                availableMusicians.map((musician) => (
+                                  <SelectItem key={musician.id} value={musician.id.toString()}>
+                                    {musician.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-musicians" disabled>
+                                  No musicians available
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
