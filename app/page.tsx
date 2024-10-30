@@ -52,22 +52,22 @@ const STYLES = {
   sectionTitle: "text-2xl font-bold mb-6 text-white",
   subsectionTitle: "text-xl font-semibold mb-4 text-white",
   summary: {
-    container: "bg-[#1E1E1E] rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto font-mono",
-    section: "p-6 bg-[#282828] rounded-lg mb-6",
-    sectionTitle: "text-lg font-semibold text-green-500 mb-4",
-    label: "text-white inline-block w-48",
+    container: "bg-[#1E1E1E] rounded-lg p-4 max-w-3xl w-full max-h-[85vh] overflow-y-auto font-mono text-sm",
+    section: "p-4 bg-[#282828] rounded-lg mb-4",
+    sectionTitle: "text-base font-semibold text-green-500 mb-3",
+    label: "text-white inline-block w-40",
     value: "text-gray-400 flex-1",
-    row: "mb-2 flex items-center",
+    row: "mb-1.5 flex items-center",
     teamGrid: {
-      container: "grid grid-cols-2 gap-x-12 gap-y-6",
-      section: "space-y-2",
-      title: "text-green-500 mb-2",
+      container: "grid grid-cols-2 gap-x-8 gap-y-4",
+      section: "space-y-1.5",
+      title: "text-green-500 mb-1.5",
     },
     setList: {
-      section: "mb-4 last:mb-0",
-      category: "text-green-500 mb-2",
-      row: "mb-2 flex items-center",
-      label: "text-white inline-block w-[23rem]",
+      section: "mb-3 last:mb-0",
+      category: "text-green-500 mb-1.5",
+      row: "mb-1.5 flex items-center",
+      label: "text-white inline-block w-[20rem]",
       value: "text-gray-400 flex-1",
     }
   }
@@ -240,6 +240,84 @@ const BIBLE_BOOKS = [
   '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
   'Jude', 'Revelation'
 ];
+
+// Professional dress code color combinations
+const DRESS_CODE_COMBINATIONS = [
+  // Classic Combinations
+  { primary: '#000000', secondary: '#FFFFFF' },   // Black & White
+  { primary: '#000080', secondary: '#FFFFFF' },   // Navy & White
+  { primary: '#1B4D3E', secondary: '#FFFFFF' },   // Forest Green & White
+  { primary: '#800020', secondary: '#FFFFFF' },   // Burgundy & White
+  { primary: '#F5F5F5', secondary: '#000000' },   // White & Black
+  
+  // Gold Combinations
+  { primary: '#000000', secondary: '#FFD700' },   // Black & Gold
+  { primary: '#000080', secondary: '#FFD700' },   // Navy & Gold
+  { primary: '#800020', secondary: '#FFD700' },   // Burgundy & Gold
+  { primary: '#1B4D3E', secondary: '#FFD700' },   // Forest Green & Gold
+  { primary: '#4B0082', secondary: '#FFD700' },   // Indigo & Gold
+  
+  // Silver Combinations
+  { primary: '#000000', secondary: '#C0C0C0' },   // Black & Silver
+  { primary: '#000080', secondary: '#C0C0C0' },   // Navy & Silver
+  { primary: '#800020', secondary: '#C0C0C0' },   // Burgundy & Silver
+  { primary: '#1B4D3E', secondary: '#C0C0C0' },   // Forest Green & Silver
+  { primary: '#4B0082', secondary: '#C0C0C0' },   // Indigo & Silver
+  
+  // Blue Variations
+  { primary: '#000080', secondary: '#87CEEB' },   // Navy & Sky Blue
+  { primary: '#000080', secondary: '#ADD8E6' },   // Navy & Light Blue
+  { primary: '#00008B', secondary: '#FFFFFF' },   // Dark Blue & White
+  { primary: '#4169E1', secondary: '#FFFFFF' },   // Royal Blue & White
+  { primary: '#000080', secondary: '#E6E6FA' },   // Navy & Lavender
+  
+  // Purple Variations
+  { primary: '#4B0082', secondary: '#FFFFFF' },   // Indigo & White
+  { primary: '#800080', secondary: '#FFFFFF' },   // Purple & White
+  { primary: '#663399', secondary: '#FFFFFF' },   // Rebecca Purple & White
+  { primary: '#4B0082', secondary: '#E6E6FA' },   // Indigo & Lavender
+  { primary: '#800080', secondary: '#FFE4E1' },   // Purple & Misty Rose
+  
+  // Green Variations
+  { primary: '#006400', secondary: '#FFFFFF' },   // Dark Green & White
+  { primary: '#228B22', secondary: '#FFFFFF' },   // Forest Green & White
+  { primary: '#355E3B', secondary: '#FFFFFF' },   // Hunter Green & White
+  { primary: '#2E8B57', secondary: '#FFFFFF' },   // Sea Green & White
+  { primary: '#013220', secondary: '#FFD700' },   // Dark Green & Gold
+  
+  // Red/Burgundy Variations
+  { primary: '#800000', secondary: '#FFFFFF' },   // Maroon & White
+  { primary: '#8B0000', secondary: '#FFFFFF' },   // Dark Red & White
+  { primary: '#AA0000', secondary: '#FFFFFF' },   // Crimson & White
+  { primary: '#800020', secondary: '#FFE4E1' },   // Burgundy & Misty Rose
+  { primary: '#800000', secondary: '#FFD700' },   // Maroon & Gold
+  
+  // Brown Variations
+  { primary: '#8B4513', secondary: '#FFFFFF' },   // Saddle Brown & White
+  { primary: '#654321', secondary: '#FFFFFF' },   // Dark Brown & White
+  { primary: '#8B4513', secondary: '#FFD700' },   // Saddle Brown & Gold
+  { primary: '#654321', secondary: '#C0C0C0' },   // Dark Brown & Silver
+  { primary: '#8B4513', secondary: '#FFE4C4' },   // Saddle Brown & Bisque
+  
+  // Gray Variations
+  { primary: '#2F4F4F', secondary: '#FFFFFF' },   // Dark Slate Gray & White
+  { primary: '#696969', secondary: '#FFFFFF' },   // Dim Gray & White
+  { primary: '#808080', secondary: '#FFFFFF' },   // Gray & White
+  { primary: '#2F4F4F', secondary: '#FFD700' },   // Dark Slate Gray & Gold
+  { primary: '#696969', secondary: '#E6E6FA' },   // Dim Gray & Lavender
+  
+  // Pastel Combinations (for special occasions)
+  { primary: '#E6E6FA', secondary: '#4B0082' },   // Lavender & Indigo
+  { primary: '#FFE4E1', secondary: '#800020' },   // Misty Rose & Burgundy
+  { primary: '#E0FFFF', secondary: '#000080' },   // Light Cyan & Navy
+  { primary: '#FFF0F5', secondary: '#800080' },   // Lavender Blush & Purple
+  { primary: '#F0FFF0', secondary: '#006400' },   // Honeydew & Dark Green
+];
+
+const generateDressCode = () => {
+  const randomIndex = Math.floor(Math.random() * DRESS_CODE_COMBINATIONS.length);
+  return DRESS_CODE_COMBINATIONS[randomIndex];
+};
 
 export default function ServiceSchedule() {
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
@@ -1287,12 +1365,21 @@ export default function ServiceSchedule() {
         ]);
 
         setShowSummary(false);
+        setShowNotification(true);
+        
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+          setShowNotification(false);
+        }, 3000);
         
       } catch (error) {
         console.error('Error capturing or copying image:', error);
       }
     }
   };
+
+  // Add this near your other state declarations
+  const [showNotification, setShowNotification] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
@@ -1483,12 +1570,13 @@ export default function ServiceSchedule() {
                   <label className="block mb-2 text-gray-400">Quick Generate</label>
                   <Button
                     onClick={() => {
-                      setPrimaryColor(generateRandomColor())
-                      setSecondaryColor(generateRandomColor())
+                      const colors = generateDressCode();
+                      setPrimaryColor(colors.primary);
+                      setSecondaryColor(colors.secondary);
                     }}
                     className={`w-full ${STYLES.button.primary}`}
                   >
-                    Random Colors
+                    Random Dress Code
                   </Button>
                 </div>
               </div>
@@ -1725,7 +1813,7 @@ export default function ServiceSchedule() {
           <div className="flex flex-col gap-6">
             {/* Separate div for the content to be captured */}
             <div ref={summaryRef} className={`${STYLES.summary.container} rounded-b-none border-b-0`}>
-              <h3 className="text-2xl font-bold text-green-500 mb-6">TechScript</h3>
+              <h3 className="text-xl font-bold text-green-500 mb-4">TechScript</h3>
               
               {/* Event Details */}
               <div className={STYLES.summary.section}>
@@ -1885,10 +1973,16 @@ export default function ServiceSchedule() {
                 onClick={() => captureAndCopyToClipboard(summaryRef)}
                 className={`${STYLES.button.primary} w-full`}
               >
-                Confirm & Create
+                Take Screenshot
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showNotification && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-notification z-50">
+          Screenshot copied! Press Ctrl+V to paste
         </div>
       )}
     </div>
