@@ -67,7 +67,7 @@ const STYLES = {
       section: "mb-4 last:mb-0",
       category: "text-green-500 mb-2",
       row: "mb-2 flex items-center",
-      label: "text-white inline-block w-[26rem]",
+      label: "text-white inline-block w-[23rem]",
       value: "text-gray-400 flex-1",
     }
   }
@@ -513,9 +513,23 @@ export default function ServiceSchedule() {
         const originalStyle = ref.current.style.maxHeight;
         ref.current.style.maxHeight = 'none';
         
-        // Capture the content with high quality settings
+        // Get the content dimensions
+        const contentWidth = ref.current.scrollWidth;
+        const contentHeight = ref.current.scrollHeight;
+        
+        // A4 dimensions in points (pt)
+        const a4Width = 595.28;  // 210mm
+        const a4Height = 841.89; // 297mm
+        
+        // Calculate scale to fit content on one page
+        // Leave some margins (0.9 = 90% of the page)
+        const scaleWidth = (a4Width * 0.9) / contentWidth;
+        const scaleHeight = (a4Height * 0.9) / contentHeight;
+        const scale = Math.min(scaleWidth, scaleHeight);
+        
+        // Capture the content with calculated scale
         const canvas = await html2canvas(ref.current, {
-          scale: 2, // Increase for higher resolution
+          scale: scale * 2, // Multiply by 2 for better quality
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#1E1E1E',
@@ -525,21 +539,22 @@ export default function ServiceSchedule() {
         // Restore original style
         ref.current.style.maxHeight = originalStyle;
 
-        // Get the dimensions
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        // Create PDF with custom dimensions
+        // Create PDF with A4 dimensions
         const pdf = new jsPDF({
-          orientation: imgHeight > imgWidth ? 'portrait' : 'landscape',
-          unit: 'mm',
-          format: 'a4',
+          orientation: 'portrait',
+          unit: 'pt',
+          format: 'a4'
         });
+
+        // Calculate centered position
+        const scaledWidth = contentWidth * scale;
+        const scaledHeight = contentHeight * scale;
+        const x = (a4Width - scaledWidth) / 2;
+        const y = (a4Height - scaledHeight) / 2;
 
         // Add image to PDF
         const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', x, y, scaledWidth, scaledHeight);
 
         // Save the PDF
         const date = new Date().toISOString().split('T')[0];
@@ -1228,6 +1243,57 @@ export default function ServiceSchedule() {
   // Add a new ref for the summary content
   const summaryRef = useRef<HTMLDivElement>(null)
 
+  // Add this helper function to capture and copy screenshot
+  const captureAndCopyToClipboard = async (ref: React.RefObject<HTMLElement>) => {
+    if (ref.current) {
+      try {
+        // First, temporarily adjust color box positions for screenshot
+        const colorBoxes = ref.current.querySelectorAll('.color-box');
+        colorBoxes.forEach((box: HTMLElement) => {
+          box.style.transform = 'translateY(4px)'; // Adjust this value as needed
+        });
+
+        // Configure high resolution settings
+        const scale = 4;
+        const options = {
+          scale: scale,
+          width: ref.current.scrollWidth,
+          height: ref.current.scrollHeight,
+          scrollY: -window.scrollY,
+          windowWidth: document.documentElement.offsetWidth,
+          windowHeight: document.documentElement.offsetHeight,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#1E1E1E',
+          logging: false,
+        };
+
+        const canvas = await html2canvas(ref.current, options);
+
+        // Reset color box positions
+        colorBoxes.forEach((box: HTMLElement) => {
+          box.style.transform = 'translateY(2px)';
+        });
+
+        // Convert to blob and copy to clipboard
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
+        });
+
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/png': blob
+          })
+        ]);
+
+        setShowSummary(false);
+        
+      } catch (error) {
+        console.error('Error capturing or copying image:', error);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
       <main className="h-full overflow-y-auto">
@@ -1648,169 +1714,176 @@ export default function ServiceSchedule() {
       )}
 
       {showSummary && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div ref={summaryRef} className={STYLES.summary.container}>
-            <h3 className="text-2xl font-bold text-green-500 mb-6">TechScript</h3>
-            
-            {/* Basic Info */}
-            <div className={STYLES.summary.section}>
-              <h4 className={STYLES.summary.sectionTitle}>Event Details</h4>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Event Type</span>
-                <span className={STYLES.summary.value}>: {getEventTypeDisplay()}</span>
-              </div>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Date</span>
-                <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : "Not set"}</span>
-              </div>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Duration</span>
-                <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
-              </div>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Dress Code</span>
-                <span className={STYLES.summary.value}>
-                  : <span className="inline-flex items-center">
-                      <span className="inline-block w-4 h-4 border border-gray-600 translate-y-[1px]" style={{ backgroundColor: primaryColor }}></span>
-                      <span className="ml-1">{primaryColor}</span>
-                      <span className="mx-3"> & </span>
-                      <span className="inline-block w-4 h-4 border border-gray-600 translate-y-[1px]" style={{ backgroundColor: secondaryColor }}></span>
-                      <span className="ml-1">{secondaryColor}</span>
-                    </span>
-                </span>
-              </div>
-            </div>
-
-            {/* Programme Flow */}
-            <div className={STYLES.summary.section}>
-              <h4 className={STYLES.summary.sectionTitle}>Programme Flow</h4>
-              {programmeFlow.map((item, index) => (
-                <div key={index} className={STYLES.summary.row}>
-                  <span className={STYLES.summary.label}>{item.name}</span>
-                  <span className={STYLES.summary.value}>: {formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Sermon Details */}
-            <div className={STYLES.summary.section}>
-              <h4 className={STYLES.summary.sectionTitle}>Sermon Details</h4>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Series</span>
-                <span className={STYLES.summary.value}>: {sermonSeries || "Not set"}</span>
-              </div>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Title</span>
-                <span className={STYLES.summary.value}>: {sermonTitle || "Not set"}</span>
-              </div>
-              <div className={STYLES.summary.row}>
-                <span className={STYLES.summary.label}>Bible Verse</span>
-                <span className={STYLES.summary.value}>: {book} {chapter}:{verse}</span>
-              </div>
-            </div>
-
-            {/* Team */}
-            <div className={STYLES.summary.section}>
-              <h4 className={STYLES.summary.sectionTitle}>Team</h4>
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSummary(false);
+            }
+          }}
+        >
+          <div className="flex flex-col gap-6">
+            {/* Separate div for the content to be captured */}
+            <div ref={summaryRef} className={`${STYLES.summary.container} rounded-b-none border-b-0`}>
+              <h3 className="text-2xl font-bold text-green-500 mb-6">TechScript</h3>
               
-              <div className={STYLES.summary.teamGrid.container}>
-                {/* Column 1 Row 1: Preaching */}
-                <div className={STYLES.summary.teamGrid.section}>
-                  <div className={STYLES.summary.teamGrid.title}>Preaching</div>
-                  <div className={STYLES.summary.row}>
-                    <span className={STYLES.summary.label}>Preacher</span>
-                    <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name || "Not selected"}</span>
+              {/* Event Details */}
+              <div className={STYLES.summary.section}>
+                <h4 className={STYLES.summary.sectionTitle}>Event Details</h4>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Event Type</span>
+                  <span className={STYLES.summary.value}>: {getEventTypeDisplay()}</span>
+                </div>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Date</span>
+                  <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : "Not set"}</span>
+                </div>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Duration</span>
+                  <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
+                </div>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Dress Code</span>
+                  <span className={STYLES.summary.value}>
+                    : <span className="inline-flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1">
+                          <span 
+                            className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
+                            style={{ backgroundColor: primaryColor }}
+                          ></span>
+                          {primaryColor}
+                        </span>
+                        <span className="mx-3">&</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span 
+                            className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
+                            style={{ backgroundColor: secondaryColor }}
+                          ></span>
+                          {secondaryColor}
+                        </span>
+                      </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Programme Flow */}
+              <div className={STYLES.summary.section}>
+                <h4 className={STYLES.summary.sectionTitle}>Programme Flow</h4>
+                {programmeFlow.map((item, index) => (
+                  <div key={index} className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>{item.name}</span>
+                    <span className={STYLES.summary.value}>: {formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
                   </div>
-                  <div className={STYLES.summary.row}>
-                    <span className={STYLES.summary.label}>Support</span>
-                    <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || "Not selected"}</span>
+                ))}
+              </div>
+
+              {/* Sermon Details */}
+              <div className={STYLES.summary.section}>
+                <h4 className={STYLES.summary.sectionTitle}>Sermon Details</h4>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Series</span>
+                  <span className={STYLES.summary.value}>: {sermonSeries || "Not set"}</span>
+                </div>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Title</span>
+                  <span className={STYLES.summary.value}>: {sermonTitle || "Not set"}</span>
+                </div>
+                <div className={STYLES.summary.row}>
+                  <span className={STYLES.summary.label}>Bible Verse</span>
+                  <span className={STYLES.summary.value}>: {book} {chapter}:{verse}</span>
+                </div>
+              </div>
+
+              {/* Team */}
+              <div className={STYLES.summary.section}>
+                <h4 className={STYLES.summary.sectionTitle}>Team</h4>
+                
+                <div className={STYLES.summary.teamGrid.container}>
+                  {/* Column 1 Row 1: Preaching */}
+                  <div className={STYLES.summary.teamGrid.section}>
+                    <div className={STYLES.summary.teamGrid.title}>Preaching</div>
+                    <div className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>Preacher</span>
+                      <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name || "Not selected"}</span>
+                    </div>
+                    <div className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>Support</span>
+                      <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || "Not selected"}</span>
+                    </div>
+                  </div>
+
+                  {/* Column 2 Row 1: Worship */}
+                  <div className={STYLES.summary.teamGrid.section}>
+                    <div className={STYLES.summary.teamGrid.title}>Worship</div>
+                    <div className={STYLES.summary.row}>
+                      <span className={STYLES.summary.label}>Worship Leader</span>
+                      <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || "Not selected"}</span>
+                    </div>
+                  </div>
+
+                  {/* Column 1 Row 2: Creatives */}
+                  <div className={STYLES.summary.teamGrid.section}>
+                    <div className={STYLES.summary.teamGrid.title}>Creatives</div>
+                    {Object.entries(selectedCreatives).map(([role, id]) => id && (
+                      <div key={role} className={STYLES.summary.row}>
+                        <span className={STYLES.summary.label}>{role}</span>
+                        <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Column 2 Row 2: Key Vocals */}
+                  <div className={STYLES.summary.teamGrid.section}>
+                    <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
+                    {selectedVocalists.map((id, index) => id && (
+                      <div key={index} className={STYLES.summary.row}>
+                        <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
+                        <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Column 2 Row 3: Musicians */}
+                  <div className={STYLES.summary.teamGrid.section}>
+                    <div className={STYLES.summary.teamGrid.title}>Musicians</div>
+                    {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
+                      <div key={instrument} className={STYLES.summary.row}>
+                        <span className={STYLES.summary.label}>{instrument}</span>
+                        <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              </div>
 
-                {/* Column 2 Row 1: Worship */}
-                <div className={STYLES.summary.teamGrid.section}>
-                  <div className={STYLES.summary.teamGrid.title}>Worship</div>
-                  <div className={STYLES.summary.row}>
-                    <span className={STYLES.summary.label}>Worship Leader</span>
-                    <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || "Not selected"}</span>
+              {/* Set List */}
+              <div className={STYLES.summary.section}>
+                <h4 className={STYLES.summary.sectionTitle}>Set List</h4>
+                {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
+                  <div key={category} className={STYLES.summary.setList.section}>
+                    <div className={STYLES.summary.setList.category}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </div>
+                    {songs.map((song, index) => (
+                      <div key={index} className={STYLES.summary.setList.row}>
+                        <span className={STYLES.summary.setList.label}>
+                          {index + 1}. {song.title}
+                        </span>
+                        <span className={STYLES.summary.setList.value}>
+                          : {song.artist}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                {/* Column 1 Row 2: Creatives */}
-                <div className={STYLES.summary.teamGrid.section}>
-                  <div className={STYLES.summary.teamGrid.title}>Creatives</div>
-                  {Object.entries(selectedCreatives).map(([role, id]) => id && (
-                    <div key={role} className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>{role}</span>
-                      <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Column 2 Row 2: Key Vocals */}
-                <div className={STYLES.summary.teamGrid.section}>
-                  <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
-                  {selectedVocalists.map((id, index) => id && (
-                    <div key={index} className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
-                      <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Column 2 Row 3: Musicians */}
-                <div className={STYLES.summary.teamGrid.section}>
-                  <div className={STYLES.summary.teamGrid.title}>Musicians</div>
-                  {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
-                    <div key={instrument} className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>{instrument}</span>
-                      <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Set List */}
-            <div className={STYLES.summary.section}>
-              <h4 className={STYLES.summary.sectionTitle}>Set List</h4>
-              {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
-                <div key={category} className={STYLES.summary.setList.section}>
-                  <div className={STYLES.summary.setList.category}>
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </div>
-                  {songs.map((song, index) => (
-                    <div key={index} className={STYLES.summary.setList.row}>
-                      <span className={STYLES.summary.setList.label}>
-                        {index + 1}. {song.title}
-                      </span>
-                      <span className={STYLES.summary.setList.value}>
-                        : {song.artist}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 mt-6">
+            {/* Separate div for the button with matching styles but outside summaryRef */}
+            <div className={`${STYLES.card} rounded-t-none border-t-0 mt-[-1px]`}>
               <Button 
-                onClick={() => setShowSummary(false)} 
-                className={STYLES.button.secondary}
-              >
-                Edit
-              </Button>
-              <Button 
-                onClick={async () => {
-                  try {
-                    await exportToPDF(summaryRef);
-                    setShowSummary(false);
-                  } catch (error) {
-                    console.error('Error exporting:', error);
-                  }
-                }} 
-                className={`${STYLES.button.primary} flex-1`}
+                onClick={() => captureAndCopyToClipboard(summaryRef)}
+                className={`${STYLES.button.primary} w-full`}
               >
                 Confirm & Create
               </Button>
