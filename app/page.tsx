@@ -679,6 +679,42 @@ export default function ServiceSchedule() {
         console.log('Fetched Support:', supportData)
         setPreachingSupport(supportData || [])
 
+        // Fetch worship leaders
+        const { data: worshipData } = await supabase
+          .from('worship_leaders')  // Make sure this matches your table name
+          .select('id, name')
+          .order('id', { ascending: true })
+        
+        console.log('Fetched Worship Leaders:', worshipData)
+        setWorshipLeaders(worshipData || [])
+
+        // Fetch vocalists
+        const { data: vocalistsData } = await supabase
+          .from('vocalists')
+          .select('id, name')
+          .order('id', { ascending: true })
+        
+        console.log('Fetched Vocalists:', vocalistsData)
+        setVocalists(vocalistsData || [])
+
+        // Fetch musicians
+        const { data: musiciansData } = await supabase
+          .from('musicians')
+          .select('id, name, instrument')
+          .order('id', { ascending: true })
+        
+        console.log('Fetched Musicians:', musiciansData)
+        setMusicians(musiciansData || [])
+
+        // Fetch creatives
+        const { data: creativesData } = await supabase
+          .from('creatives')
+          .select('id, name, role')
+          .order('id', { ascending: true })
+        
+        console.log('Fetched Creatives:', creativesData)
+        setCreatives(creativesData || [])
+
       } catch (error) {
         console.error('Error fetching role data:', error)
       }
@@ -782,61 +818,55 @@ export default function ServiceSchedule() {
               <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
               <div className="space-y-2">
                 {keyVocals.map((vocal, index) => {
-                  // Get available vocalists for this position and sort by name
-                  const availableVocalists = vocalists
-                    .filter(vocalist => {
-                      // Check if vocalist is already selected in another position
-                      const selectedInOtherPosition = selectedVocalists
-                        .filter((_, i) => i !== index)
-                        .includes(vocalist.id.toString());
-                      
-                      // Check if vocalist is selected as worship leader
-                      const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString();
+                  // Get available vocalists for this position
+                  const availableVocalists = vocalists.filter(vocalist => {
+                    // Check if vocalist is already selected in another position
+                    const selectedInOtherPosition = selectedVocalists
+                      .filter((_, i) => i !== index)
+                      .includes(vocalist.id.toString());
+                    
+                    // Check if vocalist is selected as worship leader
+                    const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString();
 
-                      return !selectedInOtherPosition && !selectedAsLeader;
-                    })
-                    // Sort by name alphabetically
-                    .sort((a, b) => a.name.localeCompare(b.name));
-
-                  // If no vocalists available and none selected for this position, show disabled state
-                  if (availableVocalists.length === 0 && !selectedVocalists[index]) {
-                    return (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="opacity-50 flex-grow">
-                          <Select disabled>
-                            <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
-                              <SelectValue placeholder={`No vocalist available for ${vocal}`} />
-                            </SelectTrigger>
-                          </Select>
-                        </div>
-                      </div>
-                    );
-                  }
+                    return !selectedInOtherPosition && !selectedAsLeader;
+                  });
 
                   return (
                     <div key={index} className="flex items-center gap-2">
-                      <Select
-                        value={selectedVocalists[index]}
-                        onValueChange={(value) => {
-                          const newSelected = [...selectedVocalists];
-                          newSelected[index] = value;
-                          setSelectedVocalists(newSelected);
-                        }}
-                      >
-                        <SelectTrigger className={STYLES.select}>
-                          <SelectValue placeholder={vocal} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableVocalists.map((vocalist) => (
-                            <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
-                              {vocalist.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex-grow">
+                        <Select
+                          value={selectedVocalists[index] || ""}
+                          onValueChange={(value) => {
+                            const newSelected = [...selectedVocalists];
+                            newSelected[index] = value;
+                            setSelectedVocalists(newSelected);
+                          }}
+                        >
+                          <SelectTrigger className={STYLES.select}>
+                            <SelectValue placeholder={`Select ${vocal}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableVocalists.length > 0 ? (
+                              availableVocalists.map((vocalist) => (
+                                <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
+                                  {vocalist.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-available" disabled>
+                                No vocalist available
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       {selectedVocalists[index] && (
                         <Button
-                          onClick={() => clearKeyVocal(index)}
+                          onClick={() => {
+                            const newSelected = [...selectedVocalists];
+                            newSelected[index] = '';
+                            setSelectedVocalists(newSelected);
+                          }}
                           variant="ghost"
                           size="icon"
                           className="text-red-500 hover:text-red-600 hover:bg-transparent"
@@ -849,7 +879,10 @@ export default function ServiceSchedule() {
                 })}
               </div>
               <Button
-                onClick={addKeyVocal}
+                onClick={() => {
+                  setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`]);
+                  setSelectedVocalists(prev => [...prev, '']);
+                }}
                 className={`mt-2 ${STYLES.button.primary}`}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
@@ -912,7 +945,13 @@ export default function ServiceSchedule() {
                   </div>
                   {selectedMusicians[instrument] && (
                     <Button
-                      onClick={() => clearMusician(instrument)}
+                      onClick={() => {
+                        setSelectedMusicians(prev => {
+                          const updated = { ...prev };
+                          delete updated[instrument];
+                          return updated;
+                        });
+                      }}
                       variant="ghost"
                       size="icon"
                       className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
@@ -1635,6 +1674,70 @@ export default function ServiceSchedule() {
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Summary Modal Content */}
+              <div className="p-4 bg-[#282828] rounded-lg">
+                <h4 className="text-lg font-semibold text-green-500 mb-2">Set List</h4>
+                <div className="space-y-4">
+                  {/* Praise */}
+                  {setList.praise.length > 0 && (
+                    <div>
+                      <h5 className="text-gray-400 mb-1">Praise</h5>
+                      {setList.praise.map((song, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm">
+                          <span>{song.title}</span>
+                          <span className="text-gray-400">{song.artist}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Worship */}
+                  {setList.worship.length > 0 && (
+                    <div>
+                      <h5 className="text-gray-400 mb-1">Worship</h5>
+                      {setList.worship.map((song, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm">
+                          <span>{song.title}</span>
+                          <span className="text-gray-400">{song.artist}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Altar Call */}
+                  {setList.altarCall.length > 0 && (
+                    <div>
+                      <h5 className="text-gray-400 mb-1">Altar Call</h5>
+                      {setList.altarCall.map((song, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm">
+                          <span>{song.title}</span>
+                          <span className="text-gray-400">{song.artist}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Revival */}
+                  {setList.revival.length > 0 && (
+                    <div>
+                      <h5 className="text-gray-400 mb-1">Revival</h5>
+                      {setList.revival.map((song, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm">
+                          <span>{song.title}</span>
+                          <span className="text-gray-400">{song.artist}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Show message if no songs added */}
+                  {!setList.praise.length && !setList.worship.length && 
+                   !setList.altarCall.length && !setList.revival.length && (
+                    <div className="text-gray-400 text-sm">No songs added to the set list</div>
+                  )}
                 </div>
               </div>
             </div>
