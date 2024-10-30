@@ -176,6 +176,9 @@ const searchSpotifySuggestions = async (query: string): Promise<SpotifyTrack[]> 
   }
 };
 
+// Add this helper function at the top of your component
+const lettersOnly = (str: string) => /^[A-Za-z\s]+$/.test(str);
+
 export default function ServiceSchedule() {
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
   const [eventDate, setEventDate] = useState<Date>()
@@ -589,6 +592,31 @@ export default function ServiceSchedule() {
     </div>
   );
 
+  const calculateTotalHours = (items: typeof programmeFlow) => {
+    let totalMinutes = 0;
+    
+    items.forEach(item => {
+      if (item.startTime && item.endTime) {
+        const start = new Date(`1970-01-01T${item.startTime}`);
+        const end = new Date(`1970-01-01T${item.endTime}`);
+        totalMinutes += (end.getTime() - start.getTime()) / 1000 / 60;
+      }
+    });
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.round(totalMinutes % 60);
+    
+    return `${hours}h ${minutes}m`;
+  };
+
+  // Add these state declarations
+  const [sermonSeries, setSermonSeries] = useState('');
+  const [sermonTitle, setSermonTitle] = useState('');
+
+  // Add these state declarations at the top of your component with other useState declarations
+  const [chapter, setChapter] = useState('');
+  const [verse, setVerse] = useState('');
+
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
       <main className="h-full overflow-y-auto">
@@ -622,7 +650,16 @@ export default function ServiceSchedule() {
                     <Input
                       placeholder="Enter Event Name"
                       value={eventName}
-                      onChange={(e) => setEventName(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (
+                          value === '' || 
+                          (lettersOnly(value) && value.length <= 20)
+                        ) {
+                          setEventName(value);
+                        }
+                      }}
+                      maxLength={20} // Additional safety measure
                       className={STYLES.input}
                     />
                   </div>
@@ -674,7 +711,16 @@ export default function ServiceSchedule() {
                   <Input
                     placeholder="Enter Programme Name"
                     value={item.name}
-                    onChange={(e) => updateProgrammeItem(index, 'name', e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (
+                        value === '' || 
+                        (lettersOnly(value) && value.length <= 20)
+                      ) {
+                        updateProgrammeItem(index, 'name', value);
+                      }
+                    }}
+                    maxLength={20} // Additional safety measure
                     className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
                   />
                   <div className="flex items-center space-x-2">
@@ -704,6 +750,15 @@ export default function ServiceSchedule() {
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Add Programme Item
               </Button>
+
+              {/* Add the total duration display */}
+              <div className="flex justify-end mt-4 text-gray-400">
+                Total Duration: {' '}
+                <span className="text-green-500 ml-2">
+                  {calculateTotalHours(programmeFlow).split('h')[0]} Hour & {' '}
+                  {calculateTotalHours(programmeFlow).split('h')[1].replace('m', '')} Minutes
+                </span>
+              </div>
             </div>
           </section>
 
@@ -767,27 +822,35 @@ export default function ServiceSchedule() {
             <h2 className={STYLES.sectionTitle}>Sermon Series</h2>
             <div className={STYLES.card}>
               <div className="space-y-4">
-                <div>
-                  <label className="block mb-2 text-gray-400">Series</label>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Select Series" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="faith">Faith Foundations</SelectItem>
-                      <SelectItem value="love">Love in Action</SelectItem>
-                      <SelectItem value="hope">Hope Renewed</SelectItem>
-                      <SelectItem value="new">Start New Series</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block mb-2 text-gray-400">Series</label>
+                    <Input
+                      placeholder="Enter Series Name"
+                      value={sermonSeries}
+                      className={STYLES.input}
+                      onChange={(e) => {
+                        if (e.target.value === '' || lettersOnly(e.target.value)) {
+                          setSermonSeries(e.target.value);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block mb-2 text-gray-400">Title</label>
+                    <Input
+                      placeholder="Enter Sermon Title"
+                      value={sermonTitle}
+                      className={STYLES.input}
+                      onChange={(e) => {
+                        if (e.target.value === '' || lettersOnly(e.target.value)) {
+                          setSermonTitle(e.target.value);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block mb-2 text-gray-400">Title</label>
-                  <Input
-                    placeholder="Enter sermon title"
-                    className={STYLES.input}
-                  />
-                </div>
+
                 <div>
                   <label className="block mb-2 text-gray-400">Bible Verse</label>
                   <div className="flex gap-4">
@@ -803,14 +866,53 @@ export default function ServiceSchedule() {
                     </Select>
                     <Input
                       placeholder="Chapter"
-                      type="number"
-                      min="1"
+                      type="text"
+                      value={chapter}
                       className={`${STYLES.input} w-24`}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow numbers and limit to 3 digits
+                        if (/^\d{0,3}$/.test(value)) {
+                          setChapter(value);
+                        }
+                      }}
+                      onKeyPress={(e) => {
+                        // Prevent non-numeric input
+                        if (!/[0-9]/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                        // Prevent input if already at 3 digits and not backspace/delete
+                        if (e.target.value.length >= 3 && e.key !== 'Backspace' && e.key !== 'Delete') {
+                          e.preventDefault();
+                        }
+                      }}
                     />
                     <Input
                       placeholder="Verse"
                       type="text"
+                      value={verse}
                       className={`${STYLES.input} w-24`}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow numbers and hyphen only, and limit length to 5 chars (excluding hyphen)
+                        if (
+                          (value === '' || /^[0-9-]+$/.test(value)) && // Only numbers and hyphen
+                          (value.replace('-', '').length <= 5) // Limit numbers to 5 digits total
+                        ) {
+                          setVerse(value);
+                        }
+                      }}
+                      onKeyPress={(e) => {
+                        // Prevent non-numeric and non-hyphen characters
+                        if (!/[0-9-]/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                        // Prevent input if would exceed 5 digits (excluding hyphen)
+                        const futureValue = e.currentTarget.value + e.key;
+                        if (futureValue.replace('-', '').length > 5) {
+                          e.preventDefault();
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -859,7 +961,7 @@ export default function ServiceSchedule() {
                           <td className="py-2">
                             {item.youtubeLink && (
                               <a href={item.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400">
-                                Link
+                                View
                               </a>
                             )}
                           </td>
