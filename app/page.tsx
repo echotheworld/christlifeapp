@@ -1,44 +1,114 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { PlusIcon, HomeIcon, UsersIcon, CalendarIcon, MusicalNoteIcon, ClockIcon, TrashIcon, PencilIcon, DocumentArrowDownIcon, ArrowLeftIcon, XMarkIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, ClockIcon, TrashIcon, ArrowLeftIcon, XMarkIcon } from '@heroicons/react/24/solid'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
-import SpotifyWebApi from 'spotify-web-api-node';
+import SpotifyWebApi from 'spotify-web-api-node'
 import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
 
-type SpotifyCredentials = {
-  clientId: string;
-  clientSecret: string;
-};
 
-type MusicDetails = {
-  title: string;
-  artist: string;
-  album?: string;
-  thumbnail?: string;
-  spotifyUrl?: string;
+type SpotifyTrack = {
+  id: string
+  title: string
+  artist: string
+  album: string
+  thumbnail?: string
+  spotifyUrl: string
 }
 
-// Add this helper function
-const formatTime = (time: string) => {
-  const [hours, minutes] = time.split(':');
-  const hour = parseInt(hours);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const formattedHour = hour % 12 || 12;
-  return `${formattedHour}:${minutes} ${ampm}`;
-};
+type SetListItem = {
+  title: string
+  artist: string
+  youtubeLink: string
+  spotifyId?: string
+  album?: string
+  thumbnail?: string
+  spotifyUrl?: string
+  suggestions?: SpotifyTrack[]
+  isLoading: boolean
+  isDetailsVisible: boolean
+  searchQuery?: string
+}
 
-// Add these style constants at the top of the file
+type Person = {
+  id: string
+  name: string
+}
+
+type Musician = Person & {
+  instrument: string
+}
+
+type Creative = Person & {
+  role: string
+}
+
+type ProgrammeItem = {
+  name: string
+  startTime: string
+  endTime: string
+}
+
+type CategoryInputs = {
+  title: string
+  artist: string
+  youtubeLink: string
+}
+
+// Initialize Spotify API
+const spotifyApi = new SpotifyWebApi({
+  clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+})
+
+// Constants
+const BIBLE_BOOKS = [
+  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
+  'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
+  '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra',
+  'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
+  'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah', 'Lamentations',
+  'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
+  'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
+  'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+  'Matthew', 'Mark', 'Luke', 'John', 'Acts',
+  'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+  'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy',
+  '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James',
+  '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
+  'Jude', 'Revelation'
+]
+
+// Helper functions
+const formatTime = (time: string) => {
+  const [hours, minutes] = time.split(':')
+  const hour = parseInt(hours)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const formattedHour = hour % 12 || 12
+  return `${formattedHour}:${minutes} ${ampm}`
+}
+
+const lettersOnly = (str: string) => /^[A-Za-z\s]+$/.test(str)
+
+const debounce = <T extends (...args: any[]) => void>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }
+}
+
+// Styles
 const STYLES = {
   input: "w-full bg-[#282828] border-none focus:ring-2 focus:ring-green-500 hover:bg-[#323232] transition-colors",
   select: "w-full bg-[#282828] border-none hover:bg-[#323232] focus:ring-2 focus:ring-green-500 transition-colors",
@@ -48,7 +118,7 @@ const STYLES = {
     danger: "bg-red-500 hover:bg-red-600 text-white transition-colors font-medium",
   },
   card: "bg-[#1E1E1E] rounded-lg p-6 border border-[#333333]",
-  section: "mb-12", // Increased spacing between sections
+  section: "mb-12",
   sectionTitle: "text-2xl font-bold mb-6 text-white",
   subsectionTitle: "text-xl font-semibold mb-4 text-white",
   summary: {
@@ -73,260 +143,16 @@ const STYLES = {
   }
 }
 
-// Initialize Spotify API (outside component)
-const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
-  clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
-});
-
-// Add this function to handle Spotify authentication
-const authenticateSpotify = async () => {
-  try {
-    // Create auth token using client credentials
-    const response = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + btoa(
-          process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID + ':' + 
-          process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET
-        ),
-      },
-      body: 'grant_type=client_credentials'
-    });
-
-    const data = await response.json();
-    
-    if (data.access_token) {
-      spotifyApi.setAccessToken(data.access_token);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error authenticating with Spotify:', error);
-    return false;
-  }
-};
-
-// Add this new function to search Spotify directly
-const searchMusic = async (query: string): Promise<MusicDetails | null> => {
-  try {
-    // Authenticate if needed
-    if (!spotifyApi.getAccessToken()) {
-      const authenticated = await authenticateSpotify();
-      if (!authenticated) return null;
-    }
-
-    // Search tracks
-    const searchResult = await spotifyApi.searchTracks(query, { limit: 1 });
-
-    if (searchResult.body.tracks?.items.length === 0) return null;
-
-    const track = searchResult.body.tracks?.items[0];
-    return {
-      title: track.name,
-      artist: track.artists.map(artist => artist.name).join(', '),
-      album: track.album.name,
-      thumbnail: track.album.images[0]?.url,
-      spotifyUrl: track.external_urls.spotify
-    };
-  } catch (error) {
-    console.error('Error searching Spotify:', error);
-    return null;
-  }
-};
-
-// Add new types
-type SpotifyTrack = {
-  id: string;
-  title: string;
-  artist: string;
-  album: string;
-  thumbnail?: string;
-  spotifyUrl: string;
-}
-
-type SetListItem = {
-  title: string;
-  artist: string;
-  youtubeLink: string;
-  spotifyId?: string;
-  album?: string;
-  thumbnail?: string;
-  spotifyUrl?: string;
-  suggestions?: SpotifyTrack[];
-  isLoading: boolean;
-  isDetailsVisible: boolean;
-}
-
-// Add debounce utility function
-const debounce = <T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
-// Add function to search Spotify with suggestions
-const searchSpotifySuggestions = async (query: string): Promise<SpotifyTrack[]> => {
-  try {
-    if (!query.trim()) return [];
-
-    // Authenticate if needed
-    if (!spotifyApi.getAccessToken()) {
-      const authenticated = await authenticateSpotify();
-      if (!authenticated) {
-        console.error('Failed to authenticate with Spotify');
-        return [];
-      }
-    }
-
-    console.log('Searching for:', query); // Debug log
-
-    const searchResult = await spotifyApi.searchTracks(query, { limit: 5 });
-    
-    console.log('Search results:', searchResult.body.tracks?.items); // Debug log
-
-    return searchResult.body.tracks?.items.map(track => ({
-      id: track.id,
-      title: track.name,
-      artist: track.artists.map(artist => artist.name).join(', '),
-      album: track.album.name,
-      thumbnail: track.album.images[track.album.images.length - 1]?.url,
-      spotifyUrl: track.external_urls.spotify
-    })) || [];
-
-  } catch (error) {
-    console.error('Error searching Spotify:', error);
-    return [];
-  }
-};
-
-// Add this helper function at the top of your component
-const lettersOnly = (str: string) => /^[A-Za-z\s]+$/.test(str);
-
-// Define types
-type Person = {
-  id: string
-  name: string
-}
-
-type Musician = Person & {
-  instrument: string
-}
-
-type Creative = Person & {
-  role: string
-}
-
-// Add this constant at the top of your file
-const BIBLE_BOOKS = [
-  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
-  'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
-  '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra',
-  'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
-  'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah', 'Lamentations',
-  'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
-  'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
-  'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
-  'Matthew', 'Mark', 'Luke', 'John', 'Acts',
-  'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
-  'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy',
-  '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James',
-  '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
-  'Jude', 'Revelation'
-];
-
-// Professional dress code color combinations
-const DRESS_CODE_COMBINATIONS = [
-  // Classic Combinations
-  { primary: '#000000', secondary: '#FFFFFF' },   // Black & White
-  { primary: '#000080', secondary: '#FFFFFF' },   // Navy & White
-  { primary: '#1B4D3E', secondary: '#FFFFFF' },   // Forest Green & White
-  { primary: '#800020', secondary: '#FFFFFF' },   // Burgundy & White
-  { primary: '#F5F5F5', secondary: '#000000' },   // White & Black
-  
-  // Gold Combinations
-  { primary: '#000000', secondary: '#FFD700' },   // Black & Gold
-  { primary: '#000080', secondary: '#FFD700' },   // Navy & Gold
-  { primary: '#800020', secondary: '#FFD700' },   // Burgundy & Gold
-  { primary: '#1B4D3E', secondary: '#FFD700' },   // Forest Green & Gold
-  { primary: '#4B0082', secondary: '#FFD700' },   // Indigo & Gold
-  
-  // Silver Combinations
-  { primary: '#000000', secondary: '#C0C0C0' },   // Black & Silver
-  { primary: '#000080', secondary: '#C0C0C0' },   // Navy & Silver
-  { primary: '#800020', secondary: '#C0C0C0' },   // Burgundy & Silver
-  { primary: '#1B4D3E', secondary: '#C0C0C0' },   // Forest Green & Silver
-  { primary: '#4B0082', secondary: '#C0C0C0' },   // Indigo & Silver
-  
-  // Blue Variations
-  { primary: '#000080', secondary: '#87CEEB' },   // Navy & Sky Blue
-  { primary: '#000080', secondary: '#ADD8E6' },   // Navy & Light Blue
-  { primary: '#00008B', secondary: '#FFFFFF' },   // Dark Blue & White
-  { primary: '#4169E1', secondary: '#FFFFFF' },   // Royal Blue & White
-  { primary: '#000080', secondary: '#E6E6FA' },   // Navy & Lavender
-  
-  // Purple Variations
-  { primary: '#4B0082', secondary: '#FFFFFF' },   // Indigo & White
-  { primary: '#800080', secondary: '#FFFFFF' },   // Purple & White
-  { primary: '#663399', secondary: '#FFFFFF' },   // Rebecca Purple & White
-  { primary: '#4B0082', secondary: '#E6E6FA' },   // Indigo & Lavender
-  { primary: '#800080', secondary: '#FFE4E1' },   // Purple & Misty Rose
-  
-  // Green Variations
-  { primary: '#006400', secondary: '#FFFFFF' },   // Dark Green & White
-  { primary: '#228B22', secondary: '#FFFFFF' },   // Forest Green & White
-  { primary: '#355E3B', secondary: '#FFFFFF' },   // Hunter Green & White
-  { primary: '#2E8B57', secondary: '#FFFFFF' },   // Sea Green & White
-  { primary: '#013220', secondary: '#FFD700' },   // Dark Green & Gold
-  
-  // Red/Burgundy Variations
-  { primary: '#800000', secondary: '#FFFFFF' },   // Maroon & White
-  { primary: '#8B0000', secondary: '#FFFFFF' },   // Dark Red & White
-  { primary: '#AA0000', secondary: '#FFFFFF' },   // Crimson & White
-  { primary: '#800020', secondary: '#FFE4E1' },   // Burgundy & Misty Rose
-  { primary: '#800000', secondary: '#FFD700' },   // Maroon & Gold
-  
-  // Brown Variations
-  { primary: '#8B4513', secondary: '#FFFFFF' },   // Saddle Brown & White
-  { primary: '#654321', secondary: '#FFFFFF' },   // Dark Brown & White
-  { primary: '#8B4513', secondary: '#FFD700' },   // Saddle Brown & Gold
-  { primary: '#654321', secondary: '#C0C0C0' },   // Dark Brown & Silver
-  { primary: '#8B4513', secondary: '#FFE4C4' },   // Saddle Brown & Bisque
-  
-  // Gray Variations
-  { primary: '#2F4F4F', secondary: '#FFFFFF' },   // Dark Slate Gray & White
-  { primary: '#696969', secondary: '#FFFFFF' },   // Dim Gray & White
-  { primary: '#808080', secondary: '#FFFFFF' },   // Gray & White
-  { primary: '#2F4F4F', secondary: '#FFD700' },   // Dark Slate Gray & Gold
-  { primary: '#696969', secondary: '#E6E6FA' },   // Dim Gray & Lavender
-  
-  // Pastel Combinations (for special occasions)
-  { primary: '#E6E6FA', secondary: '#4B0082' },   // Lavender & Indigo
-  { primary: '#FFE4E1', secondary: '#800020' },   // Misty Rose & Burgundy
-  { primary: '#E0FFFF', secondary: '#000080' },   // Light Cyan & Navy
-  { primary: '#FFF0F5', secondary: '#800080' },   // Lavender Blush & Purple
-  { primary: '#F0FFF0', secondary: '#006400' },   // Honeydew & Dark Green
-];
-
-const generateDressCode = () => {
-  const randomIndex = Math.floor(Math.random() * DRESS_CODE_COMBINATIONS.length);
-  return DRESS_CODE_COMBINATIONS[randomIndex];
-};
-
+// Main component
 export default function ServiceSchedule() {
+  // State
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
   const [eventDate, setEventDate] = useState<Date>()
   const [eventName, setEventName] = useState('')
   const [isOtherEvent, setIsOtherEvent] = useState(false)
   const [primaryColor, setPrimaryColor] = useState('#00ff00')
   const [secondaryColor, setSecondaryColor] = useState('#ffffff')
-  const [programmeFlow, setProgrammeFlow] = useState([
+  const [programmeFlow, setProgrammeFlow] = useState<ProgrammeItem[]>([
     { name: 'Countdown Begins', startTime: '08:55', endTime: '09:00' }
   ])
   const [setList, setSetList] = useState<Record<string, SetListItem[]>>({
@@ -335,171 +161,200 @@ export default function ServiceSchedule() {
     altarCall: [],
     revival: []
   })
-  const [activeTab, setActiveTab] = useState('home')
   const [keyVocals, setKeyVocals] = useState(['Soprano', 'Alto', 'Tenor', 'Bass'])
-  const [recordedData, setRecordedData] = useState('')
-  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false)
+  const [showNotification, setShowNotification] = useState(false)
   const [open, setOpen] = useState(false)
-
-  const contentRef = useRef(null)
-
-  // Add state for suggestions
-  const [suggestions, setSuggestions] = useState<{
-    praise: SpotifyTrack[];
-    worship: SpotifyTrack[];
-    altarCall: SpotifyTrack[];
-    revival: SpotifyTrack[];
-  }>({
+  const [suggestions, setSuggestions] = useState<Record<string, SpotifyTrack[]>>({
     praise: [],
     worship: [],
     altarCall: [],
     revival: []
-  });
-
-  // Add loading state
-  const [isLoading, setIsLoading] = useState<{
-    praise: boolean;
-    worship: boolean;
-    altarCall: boolean;
-    revival: boolean;
-  }>({
+  })
+  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({
     praise: false,
     worship: false,
     altarCall: false,
     revival: false
-  });
+  })
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [inputs, setInputs] = useState<Record<string, CategoryInputs>>({
+    praise: { title: '', artist: '', youtubeLink: '' },
+    worship: { title: '', artist: '', youtubeLink: '' },
+    altarCall: { title: '', artist: '', youtubeLink: '' },
+    revival: { title: '', artist: '', youtubeLink: '' }
+  })
+  const [preachers, setPreachers] = useState<Person[]>([])
+  const [preachingSupport, setPreachingSupport] = useState<Person[]>([])
+  const [worshipLeaders, setWorshipLeaders] = useState<Person[]>([])
+  const [vocalists, setVocalists] = useState<Person[]>([])
+  const [musicians, setMusicians] = useState<Musician[]>([])
+  const [creatives, setCreatives] = useState<Creative[]>([])
+  const [selectedPreacher, setSelectedPreacher] = useState('')
+  const [selectedSupport, setSelectedSupport] = useState('')
+  const [selectedWorshipLeader, setSelectedWorshipLeader] = useState('')
+  const [selectedVocalists, setSelectedVocalists] = useState<string[]>([])
+  const [selectedMusicians, setSelectedMusicians] = useState<Record<string, string>>({})
+  const [selectedCreatives, setSelectedCreatives] = useState<Record<string, string>>({})
+  const [sermonSeries, setSermonSeries] = useState('')
+  const [sermonTitle, setSermonTitle] = useState('')
+  const [chapter, setChapter] = useState('')
+  const [verse, setVerse] = useState('')
+  const [book, setBook] = useState('')
+  const [bookSearch, setBookSearch] = useState('')
+  const [filteredBooks, setFilteredBooks] = useState<string[]>([])
+  const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false)
 
-  // Add state to track which dropdown is open
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  // Refs
+  const summaryRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Add useRef for the dropdown
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Add useEffect for click outside listener
+  // Effects
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpenDropdown(null);
-        // Clear all suggestions
-        setSuggestions(prev => ({
-          praise: [],
-          worship: [],
-          altarCall: [],
-          revival: []
-        }));
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Debounced search function
-  const debouncedSearch = debounce(async (category: string, query: string) => {
-    if (!query.trim()) {
-      setSuggestions(prev => ({ ...prev, [category]: [] }));
-      return;
-    }
-
-    setIsLoading(prev => ({ ...prev, [category]: true }));
-
-    try {
-      // Authenticate if needed
-      if (!spotifyApi.getAccessToken()) {
-        const authenticated = await authenticateSpotify();
-        if (!authenticated) return;
-      }
-
-      const results = await spotifyApi.searchTracks(query, { limit: 5 });
-      const tracks: SpotifyTrack[] = results.body.tracks?.items.map(track => ({
-        id: track.id,
-        title: track.name,
-        artist: track.artists.map(artist => artist.name).join(', '),
-        album: track.album.name,
-        thumbnail: track.album.images[0]?.url,
-        spotifyUrl: track.external_urls.spotify
-      })) || [];
-
-      setSuggestions(prev => ({ ...prev, [category]: tracks }));
-    } catch (error) {
-      console.error('Error searching Spotify:', error);
-    } finally {
-      setIsLoading(prev => ({ ...prev, [category]: false }));
-    }
-  }, 500);
-
-  useEffect(() => {
-    // Set initial time only after component mounts on client
     setCurrentDateTime(new Date())
-    
     const timer = setInterval(() => setCurrentDateTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
   useEffect(() => {
-    // Record all data whenever it changes
-    const data = JSON.stringify({
-      eventName,
-      eventDate,
-      programmeFlow,
-      setList,
-      keyVocals,
-      primaryColor,
-      secondaryColor
-    }, null, 2)
-    setRecordedData(data)
-  }, [eventName, eventDate, programmeFlow, setList, keyVocals, primaryColor, secondaryColor])
+    const fetchRoleData = async () => {
+      try {
+        const { data: preachersData } = await supabase
+          .from('preachers')
+          .select('id, name')
+          .order('id')
+        setPreachers(preachersData || [])
 
-  // Update the state to have separate inputs for each category
-  const [inputs, setInputs] = useState({
-    praise: { title: '', artist: '', youtubeLink: '' },
-    worship: { title: '', artist: '', youtubeLink: '' },
-    altarCall: { title: '', artist: '', youtubeLink: '' },
-    revival: { title: '', artist: '', youtubeLink: '' }
-  });
+        const { data: supportData } = await supabase
+          .from('preaching_support')
+          .select('id, name')
+          .order('id')
+        setPreachingSupport(supportData || [])
 
-  // Modify addSetListItem to use the current input
-  const addSetListItem = (category: 'praise' | 'worship' | 'altarCall' | 'revival') => {
-    if (!inputs[category].title.trim()) return;
+        const { data: worshipData } = await supabase
+          .from('worship_leaders')
+          .select('id, name')
+          .order('id')
+        setWorshipLeaders(worshipData || [])
+
+        const { data: vocalistsData } = await supabase
+          .from('vocalists')
+          .select('id, name')
+          .order('id')
+        setVocalists(vocalistsData || [])
+
+        const { data: musiciansData } = await supabase
+          .from('musicians')
+          .select('id, name, instrument')
+          .order('id')
+        setMusicians(musiciansData || [])
+
+        const { data: creativesData } = await supabase
+          .from('creatives')
+          .select('id, name, role')
+          .order('id')
+        setCreatives(creativesData || [])
+      } catch (error) {
+        console.error('Error fetching role data:', error)
+      }
+    }
+
+    fetchRoleData()
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null)
+        setSuggestions({
+          praise: [],
+          worship: [],
+          altarCall: [],
+          revival: []
+        })
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Spotify authentication
+  const authenticateSpotify = async () => {
+    try {
+      const response = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + btoa(
+            `${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID}:${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET}`
+          ),
+        },
+        body: 'grant_type=client_credentials'
+      })
+
+      const data = await response.json()
+      
+      if (data.access_token) {
+        spotifyApi.setAccessToken(data.access_token)
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Error authenticating with Spotify:', error)
+      return false
+    }
+  }
+
+  // Event handlers
+  const handleEventTypeChange = (value: string) => {
+    if (value === 'others') {
+      setIsOtherEvent(true)
+      setEventName('')
+    } else {
+      setIsOtherEvent(false)
+      setEventName(value)
+    }
+  }
+
+  const handleCreate = () => {
+    setShowSummary(true)
+  }
+
+  const handleBookSearch = (value: string) => {
+    setBookSearch(value)
+    
+    if (value.trim() === '') {
+      setFilteredBooks([])
+      return
+    }
+
+    const filtered = BIBLE_BOOKS.filter(book =>
+      book.toLowerCase().includes(value.toLowerCase())
+    )
+    setFilteredBooks(filtered)
+    setIsBookDropdownOpen(true)
+  }
+
+  const addSetListItem = (category: keyof typeof setList) => {
+    if (!inputs[category].title.trim()) return
 
     setSetList(prev => ({
       ...prev,
       [category]: [...prev[category], {
-        title: inputs[category].title,
-        artist: inputs[category].artist,
-        youtubeLink: inputs[category].youtubeLink,
+        ...inputs[category],
         isLoading: false,
         isDetailsVisible: false,
       }]
-    }));
+    }))
 
-    // Clear the form after adding
     setInputs(prev => ({
       ...prev,
       [category]: { title: '', artist: '', youtubeLink: '' }
-    }));
-  };
+    }))
+  }
 
-  const updateSetListItem = (
-    category: 'praise' | 'worship' | 'altarCall',
-    index: number,
-    field: keyof SetListItem,
-    value: any
-  ) => {
-    setSetList(prev => ({
-      ...prev,
-      [category]: prev[category].map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      )
-    }));
-
-    // If updating title, trigger suggestions search
-    if (field === 'title') {
-      debouncedSearch(category, value);
-    }
-  };
-
-  const deleteSetListItem = (category: 'praise' | 'worship' | 'altarCall', index: number) => {
+  const deleteSetListItem = (category: keyof typeof setList, index: number) => {
     setSetList(prev => ({
       ...prev,
       [category]: prev[category].filter((_, i) => i !== index)
@@ -508,18 +363,17 @@ export default function ServiceSchedule() {
 
   const addProgrammeItem = () => {
     setProgrammeFlow(prev => {
-      const lastItem = prev[prev.length - 1];
-      const newStartTime = lastItem ? lastItem.endTime : ''; // Get the end time of the last item
-      
+      const lastItem = prev[prev.length - 1]
       return [...prev, {
         name: '',
-        startTime: newStartTime, // Use the previous end time as the new start time
+        startTime: lastItem ? lastItem.endTime : '',
         endTime: ''
-      }];
-    });
-  };
+      
+      }]
+    })
+  }
 
-  const updateProgrammeItem = (index: number, field: 'name' | 'startTime' | 'endTime', value: string) => {
+  const updateProgrammeItem = (index: number, field: keyof ProgrammeItem, value: string) => {
     setProgrammeFlow(prev => prev.map((item, i) =>
       i === index ? { ...item, [field]: value } : item
     ))
@@ -533,198 +387,226 @@ export default function ServiceSchedule() {
     return '#' + Math.floor(Math.random() * 16777215).toString(16)
   }
 
-  const addKeyVocal = () => {
-    setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`])
+  const clearKeyVocal = (index: number) => {
+    setSelectedVocalists(prev => {
+      const newSelected = [...prev]
+      newSelected[index] = ''
+      return newSelected
+    })
   }
 
-  // Update the exportToJPEG function for high quality capture
-  const exportToJPEG = async (ref: React.RefObject<HTMLElement>) => {
-    if (ref.current) {
-      // Configure high resolution settings
-      const scale = 4; // Increase for higher resolution (2 = 2x, 3 = 3x, etc.)
-      
-      const options = {
-        scale: scale,
-        width: ref.current.scrollWidth,
-        height: ref.current.scrollHeight, // Capture full height
-        scrollY: -window.scrollY,
-        windowWidth: document.documentElement.offsetWidth,
-        windowHeight: document.documentElement.offsetHeight,
-        useCORS: true, // Enable cross-origin image loading
-        allowTaint: true,
-        backgroundColor: '#1E1E1E', // Match your background color
-        logging: false,
-      };
+  const clearMusician = (instrument: string) => {
+    setSelectedMusicians(prev => {
+      const updated = { ...prev }
+      delete updated[instrument]
+      return updated
+    })
+  }
 
-      try {
-        // Temporarily remove scrolling to capture everything
-        const originalStyle = ref.current.style.maxHeight;
-        ref.current.style.maxHeight = 'none';
-        
-        const canvas = await html2canvas(ref.current, options);
-        
-        // Restore original style
-        ref.current.style.maxHeight = originalStyle;
+  const clearCreative = (role: string) => {
+    setSelectedCreatives(prev => {
+      const updated = { ...prev }
+      delete updated[role]
+      return updated
+    })
+  }
 
-        // Convert to high quality JPEG
-        const dataURL = canvas.toDataURL('image/jpeg', 1.0); // 1.0 = highest quality
-        
-        // Create filename with date
-        const date = new Date().toISOString().split('T')[0];
-        const filename = `service_schedule_${date}.jpg`;
-
-        // Download
-        const link = document.createElement('a');
-        link.href = dataURL;
-        link.download = filename;
-        link.click();
-      } catch (error) {
-        console.error('Error generating image:', error);
-      }
+  // Spotify search
+  const debouncedSearch = debounce(async (category: string, query: string) => {
+    if (!query.trim()) {
+      setSuggestions(prev => ({ ...prev, [category]: [] }))
+      return
     }
-  }
 
-  const exportToPDF = async (ref: React.RefObject<HTMLElement>) => {
+    setIsLoading(prev => ({ ...prev, [category]: true }))
+
+    try {
+      if (!spotifyApi.getAccessToken()) {
+        const authenticated = await authenticateSpotify()
+        if (!authenticated) return
+      }
+
+      const results = await spotifyApi.searchTracks(query, { limit: 5 })
+      const tracks: SpotifyTrack[] = results.body.tracks?.items.map(track => ({
+        id: track.id,
+        title: track.name,
+        artist: track.artists.map(artist => artist.name).join(', '),
+        album: track.album.name,
+        thumbnail: track.album.images[0]?.url,
+        spotifyUrl: track.external_urls.spotify
+      })) || []
+
+      setSuggestions(prev => ({ ...prev, [category]: tracks }))
+    } catch (error) {
+      console.error('Error searching Spotify:', error)
+    } finally {
+      setIsLoading(prev => ({ ...prev, [category]: false }))
+    }
+  }, 500)
+
+  // Screenshot handling
+  const captureAndCopyToClipboard = async (ref: React.RefObject<HTMLElement>) => {
     if (ref.current) {
       try {
-        // Temporarily remove scrolling to capture everything
-        const originalStyle = ref.current.style.maxHeight;
-        ref.current.style.maxHeight = 'none';
-        
-        // Get the content dimensions
-        const contentWidth = ref.current.scrollWidth;
-        const contentHeight = ref.current.scrollHeight;
-        
-        // A4 dimensions in points (pt)
-        const a4Width = 595.28;  // 210mm
-        const a4Height = 841.89; // 297mm
-        
-        // Calculate scale to fit content on one page
-        // Leave some margins (0.9 = 90% of the page)
-        const scaleWidth = (a4Width * 0.9) / contentWidth;
-        const scaleHeight = (a4Height * 0.9) / contentHeight;
-        const scale = Math.min(scaleWidth, scaleHeight);
-        
-        // Capture the content with calculated scale
-        const canvas = await html2canvas(ref.current, {
-          scale: scale * 2, // Multiply by 2 for better quality
+        const colorBoxes = ref.current.querySelectorAll('.color-box')
+        colorBoxes.forEach((box: HTMLElement) => {
+          box.style.transform = 'translateY(4px)'
+        })
+
+        const scale = 4
+        const options = {
+          scale,
+          width: ref.current.scrollWidth,
+          height: ref.current.scrollHeight,
+          scrollY: -window.scrollY,
+          windowWidth: document.documentElement.offsetWidth,
+          windowHeight: document.documentElement.offsetHeight,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#1E1E1E',
           logging: false,
-        });
+        }
+
+        const canvas = await html2canvas(ref.current, options)
+
+        colorBoxes.forEach((box: HTMLElement) => {
+          box.style.transform = 'translateY(2px)'
+        })
+
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0)
+        })
+
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/png': blob
+          })
+        ])
+
+        setShowSummary(false)
+        setShowNotification(true)
         
-        // Restore original style
-        ref.current.style.maxHeight = originalStyle;
-
-        // Create PDF with A4 dimensions
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'pt',
-          format: 'a4'
-        });
-
-        // Calculate centered position
-        const scaledWidth = contentWidth * scale;
-        const scaledHeight = contentHeight * scale;
-        const x = (a4Width - scaledWidth) / 2;
-        const y = (a4Height - scaledHeight) / 2;
-
-        // Add image to PDF
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        pdf.addImage(imgData, 'JPEG', x, y, scaledWidth, scaledHeight);
-
-        // Save the PDF
-        const date = new Date().toISOString().split('T')[0];
-        pdf.save(`service_schedule_${date}.pdf`);
-
+        setTimeout(() => {
+          setShowNotification(false)
+        }, 3000)
+        
       } catch (error) {
-        console.error('Error generating PDF:', error);
+        console.error('Error capturing or copying image:', error)
       }
-    }
-  };
-
-  const handleCreate = () => {
-    setShowSummary(true); // Show summary first instead of creating immediately
-  };
-
-  const handleEventTypeChange = (value: string) => {
-    if (value === 'others') {
-      setIsOtherEvent(true)
-      setEventName('')
-    } else {
-      setIsOtherEvent(false)
-      setEventName(value)
     }
   }
 
-  // Update the checkYouTubeLink function to checkMusic
-  const checkMusic = async (category: 'praise' | 'worship' | 'altarCall', index: number) => {
-    const item = setList[category][index];
+  // Helper functions
+  const calculateTotalHours = (items: ProgrammeItem[]) => {
+    let totalMinutes = 0
     
-    setSetList(prev => ({
-      ...prev,
-      [category]: prev[category].map((item, i) =>
-        i === index ? { ...item, isLoading: true } : item
-      )
-    }));
+    items.forEach(item => {
+      if (item.startTime && item.endTime) {
+        const start = new Date(`1970-01-01T${item.startTime}`)
+        const end = new Date(`1970-01-01T${item.endTime}`)
+        totalMinutes += (end.getTime() - start.getTime()) / 1000 / 60
+      }
+    })
 
-    const details = await searchMusic(item.searchQuery);
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = Math.round(totalMinutes % 60)
     
-    if (details) {
-      setSetList(prev => ({
-        ...prev,
-        [category]: prev[category].map((item, i) =>
-          i === index ? {
-            ...item,
-            title: details.title,
-            by: details.artist,
-            album: details.album,
-            thumbnail: details.thumbnail,
-            spotifyUrl: details.spotifyUrl,
-            isDetailsVisible: true,
-            isLoading: false
-          } : item
-        )
-      }));
-    } else {
-      setSetList(prev => ({
-        ...prev,
-        [category]: prev[category].map((item, i) =>
-          i === index ? { ...item, isLoading: false } : item
-        )
-      }));
+    return `${hours}h ${minutes}m`
+  }
+
+  const getEventTypeDisplay = () => {
+    if (isOtherEvent) return eventName
+    
+    switch (eventName) {
+      case 'sunday-service':
+        return 'Sunday Service'
+      case 'sunday-special':
+        return 'Sunday Special'
+      case 'sunday-praise-party':
+        return 'Sunday Praise Party'
+      case 'wednesday-revival':
+        return 'Wednesday Revival'
+      case 'others':
+        return 'Others'
+      default:
+        return 'Not set'
     }
-  };
+  }
 
-  // Add function to select a suggestion
-  const selectSuggestion = (category: 'praise' | 'worship' | 'altarCall', index: number, track: SpotifyTrack) => {
-    setSetList(prev => ({
-      ...prev,
-      [category]: prev[category].map((item, i) =>
-        i === index ? {
-          ...item,
-          title: track.title,
-          artist: track.artist,
-          album: track.album,
-          thumbnail: track.thumbnail,
-          spotifyUrl: track.spotifyUrl,
-          spotifyId: track.id,
-          suggestions: [], // Clear suggestions
-          isDetailsVisible: true
-        } : item
-      )
-    }));
-  };
+  // Render methods
+  const renderEventDetails = () => (
+    <section className={STYLES.section}>
+      <h2 className={STYLES.sectionTitle}>Event Details</h2>
+      <div className={STYLES.card}>
+        <div className="grid grid-cols-2 gap-4">
+          {isOtherEvent ? (
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost"
+                onClick={() => setIsOtherEvent(false)}
+                className={STYLES.button.secondary}
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+              </Button>
+              <Input
+                placeholder="Enter Event Name"
+                value={eventName}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === '' || (lettersOnly(value) && value.length <= 20)) {
+                    setEventName(value)
+                  }
+                }}
+                maxLength={20}
+                className={STYLES.input}
+              />
+            </div>
+          ) : (
+            <Select onValueChange={handleEventTypeChange}>
+              <SelectTrigger className={STYLES.select}>
+                <SelectValue placeholder="Select Event Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sunday-service">Sunday Service</SelectItem>
+                <SelectItem value="sunday-special">Sunday Special</SelectItem>
+                <SelectItem value="sunday-praise-party">Sunday Praise Party</SelectItem>
+                <SelectItem value="wednesday-revival">Wednesday Revival</SelectItem>
+                <SelectItem value="others">Others</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={`w-full justify-start text-left font-normal bg-[#282828] border-none hover:bg-green-500 hover:text-white focus:border-green-500 transition-colors ${!eventDate && "text-muted-foreground"}`}
+              >
+                {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={eventDate}
+                onSelect={(date) => {
+                  setEventDate(date)
+                  setOpen(false)
+                }}
+                initialFocus
+                className="bg-[#282828] text-white border-green-500"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+    </section>
+  )
 
-  // Update the input form JSX for each category
-  const renderCategoryInput = (category: 'praise' | 'worship' | 'altarCall' | 'revival') => (
+  const renderCategoryInput = (category: keyof typeof setList) => (
     <div className={STYLES.card}>
       <h3 className={STYLES.subsectionTitle}>
-        {category === 'praise' ? 'Praise' :
-         category === 'worship' ? 'Worship' :
-         category === 'altarCall' ? 'Altar Call' :
-         'Revival'}
+        {category === 'altarCall' ? 'Altar Call' :
+         category.charAt(0).toUpperCase() + category.slice(1)}
       </h3>
       <div className="space-y-4">
         <div className="relative">
@@ -735,14 +617,13 @@ export default function ServiceSchedule() {
               setInputs(prev => ({
                 ...prev,
                 [category]: { ...prev[category], title: e.target.value }
-              }));
-              setOpenDropdown(category);
-              debouncedSearch(category, e.target.value);
+              }))
+              setOpenDropdown(category)
+              debouncedSearch(category, e.target.value)
             }}
             onFocus={() => setOpenDropdown(category)}
             className={STYLES.input}
           />
-          {/* Suggestions Dropdown */}
           {suggestions[category].length > 0 && openDropdown === category && (
             <div 
               ref={dropdownRef}
@@ -760,13 +641,20 @@ export default function ServiceSchedule() {
                         artist: track.artist,
                         youtubeLink: ''
                       }
-                    }));
-                    setOpenDropdown(null); // Close dropdown after selection
-                    setSuggestions(prev => ({ ...prev, [category]: [] }));
+                    }))
+                    setOpenDropdown(null)
+                    setSuggestions(prev => ({ ...prev, [category]: [] }))
                   }}
                 >
                   {track.thumbnail && (
-                    <img src={track.thumbnail} alt="" className="w-10 h-10 rounded" />
+                    <div className="relative w-10 h-10">
+                      <Image
+                        src={track.thumbnail}
+                        alt=""
+                        fill
+                        className="rounded object-cover"
+                      />
+                    </div>
                   )}
                   <div>
                     <div className="font-medium">{track.title}</div>
@@ -811,576 +699,9 @@ export default function ServiceSchedule() {
         </Button>
       </div>
     </div>
-  );
-
-  const calculateTotalHours = (items: typeof programmeFlow) => {
-    let totalMinutes = 0;
-    
-    items.forEach(item => {
-      if (item.startTime && item.endTime) {
-        const start = new Date(`1970-01-01T${item.startTime}`);
-        const end = new Date(`1970-01-01T${item.endTime}`);
-        totalMinutes += (end.getTime() - start.getTime()) / 1000 / 60;
-      }
-    });
-
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = Math.round(totalMinutes % 60);
-    
-    return `${hours}h ${minutes}m`;
-  };
-
-  // Add state for all roles
-  const [preachers, setPreachers] = useState<Person[]>([])
-  const [preachingSupport, setPreachingSupport] = useState<Person[]>([])
-  const [worshipLeaders, setWorshipLeaders] = useState<Person[]>([])
-  const [vocalists, setVocalists] = useState<Person[]>([])
-  const [musicians, setMusicians] = useState<Musician[]>([])
-  const [creatives, setCreatives] = useState<Creative[]>([])
-
-  // Add state for selections
-  const [selectedPreacher, setSelectedPreacher] = useState<string>('')
-  const [selectedSupport, setSelectedSupport] = useState<string>('')
-  const [selectedWorshipLeader, setSelectedWorshipLeader] = useState<string>('')
-  const [selectedVocalists, setSelectedVocalists] = useState<string[]>([])
-  const [selectedMusicians, setSelectedMusicians] = useState<Record<string, string>>({})
-  const [selectedCreatives, setSelectedCreatives] = useState<Record<string, string>>({})
-
-  // Fetch all role data on component mount
-  useEffect(() => {
-    const fetchRoleData = async () => {
-      try {
-        // Fetch preachers
-        const { data: preachersData } = await supabase
-          .from('preachers')
-          .select('id, name')
-          .order('id', { ascending: true })
-        
-        console.log('Fetched Preachers:', preachersData)
-        setPreachers(preachersData || [])
-
-        // Add fetch for preaching support
-        const { data: supportData } = await supabase
-          .from('preaching_support')  // Make sure this matches your table name
-          .select('id, name')
-          .order('id', { ascending: true })
-        
-        console.log('Fetched Support:', supportData)
-        setPreachingSupport(supportData || [])
-
-        // Fetch worship leaders
-        const { data: worshipData } = await supabase
-          .from('worship_leaders')  // Make sure this matches your table name
-          .select('id, name')
-          .order('id', { ascending: true })
-        
-        console.log('Fetched Worship Leaders:', worshipData)
-        setWorshipLeaders(worshipData || [])
-
-        // Fetch vocalists
-        const { data: vocalistsData } = await supabase
-          .from('vocalists')
-          .select('id, name')
-          .order('id', { ascending: true })
-        
-        console.log('Fetched Vocalists:', vocalistsData)
-        setVocalists(vocalistsData || [])
-
-        // Fetch musicians
-        const { data: musiciansData } = await supabase
-          .from('musicians')
-          .select('id, name, instrument')
-          .order('id', { ascending: true })
-        
-        console.log('Fetched Musicians:', musiciansData)
-        setMusicians(musiciansData || [])
-
-        // Fetch creatives
-        const { data: creativesData } = await supabase
-          .from('creatives')
-          .select('id, name, role')
-          .order('id', { ascending: true })
-        
-        console.log('Fetched Creatives:', creativesData)
-        setCreatives(creativesData || [])
-
-      } catch (error) {
-        console.error('Error fetching role data:', error)
-      }
-    }
-
-    fetchRoleData()
-  }, [])
-
-  // Update the Roles section JSX:
-  const renderRolesSection = () => (
-    <section className={STYLES.section}>
-      <h2 className={STYLES.sectionTitle}>Roles</h2>
-      <div className="grid grid-cols-2 gap-6">
-        {/* Sermon */}
-        <div className={STYLES.card}>
-          <h3 className={STYLES.subsectionTitle}>Sermon</h3>
-          <div className="space-y-4">
-            <Select value={selectedPreacher} onValueChange={setSelectedPreacher}>
-              <SelectTrigger className={STYLES.select}>
-                <SelectValue placeholder="Preacher" />
-              </SelectTrigger>
-              <SelectContent>
-                {preachers.map((preacher) => (
-                  <SelectItem 
-                    key={preacher.id} 
-                    value={preacher.id.toString()}
-                    onClick={() => console.log('Selected:', preacher.name, preacher.id)}
-                  >
-                    {preacher.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedSupport} onValueChange={setSelectedSupport}>
-              <SelectTrigger className={STYLES.select}>
-                <SelectValue placeholder="Preaching Support" />
-              </SelectTrigger>
-              <SelectContent>
-                {preachingSupport.map((person) => (
-                  <SelectItem 
-                    key={person.id} 
-                    value={person.id.toString()}
-                    onClick={() => console.log('Selected Support:', person.name, person.id)}
-                  >
-                    {person.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Worship */}
-        <div className={STYLES.card}>
-          <h3 className={STYLES.subsectionTitle}>Worship</h3>
-          <div className="space-y-4">
-            {/* Worship Leader - Keeping original sort by ID */}
-            {(() => {
-              // Get available worship leaders
-              const availableLeaders = worshipLeaders.filter(leader => {
-                // Check if this leader is selected as a vocalist
-                const selectedAsVocalist = selectedVocalists.includes(leader.id.toString());
-                // Check if this leader is not the currently selected worship leader
-                const notCurrentLeader = selectedWorshipLeader !== leader.id.toString();
-                
-                return !selectedAsVocalist || !notCurrentLeader;
-              });
-
-              // If no leaders available and none selected, show disabled state
-              if (availableLeaders.length === 0 && !selectedWorshipLeader) {
-                return (
-                  <div className="opacity-50">
-                    <Select disabled>
-                      <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
-                        <SelectValue placeholder="No Worship Leader available" />
-                      </SelectTrigger>
-                    </Select>
-                  </div>
-                );
-              }
-
-              return (
-                <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
-                  <SelectTrigger className={STYLES.select}>
-                    <SelectValue placeholder="Worship Leader" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableLeaders.map((leader) => (
-                      <SelectItem key={leader.id} value={leader.id.toString()}>
-                        {leader.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              );
-            })()}
-
-            {/* Key Vocals - Now sorted by name */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
-              <div className="space-y-2">
-                {keyVocals.map((vocal, index) => {
-                  // Get available vocalists for this position
-                  const availableVocalists = vocalists.filter(vocalist => {
-                    // Check if vocalist is already selected in another position
-                    const selectedInOtherPosition = selectedVocalists
-                      .filter((_, i) => i !== index)
-                      .includes(vocalist.id.toString());
-                    
-                    // Check if vocalist is selected as worship leader
-                    const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString();
-
-                    return !selectedInOtherPosition && !selectedAsLeader;
-                  });
-
-                  return (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="flex-grow">
-                        <Select
-                          value={selectedVocalists[index] || ""}
-                          onValueChange={(value) => {
-                            const newSelected = [...selectedVocalists];
-                            newSelected[index] = value;
-                            setSelectedVocalists(newSelected);
-                          }}
-                        >
-                          <SelectTrigger className={STYLES.select}>
-                            <SelectValue placeholder={`Select ${vocal}`} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableVocalists.length > 0 ? (
-                              availableVocalists.map((vocalist) => (
-                                <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
-                                  {vocalist.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="no-available" disabled>
-                                No vocalist available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {selectedVocalists[index] && (
-                        <Button
-                          onClick={() => {
-                            const newSelected = [...selectedVocalists];
-                            newSelected[index] = '';
-                            setSelectedVocalists(newSelected);
-                          }}
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-500 hover:text-red-600 hover:bg-transparent"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <Button
-                onClick={() => {
-                  setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`]);
-                  setSelectedVocalists(prev => [...prev, '']);
-                }}
-                className={`mt-2 ${STYLES.button.primary}`}
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Add Voice
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Musicians */}
-        <div className={STYLES.card}>
-          <h3 className={STYLES.subsectionTitle}>Musicians</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
-              const availableMusicians = musicians.filter(m => {
-                // 1. Check if musician plays this instrument
-                const playsInstrument = m.instrument === instrument;
-                
-                // 2. Check if this musician (by name) is already selected for ANY OTHER instrument
-                const musicianName = m.name;
-                const isSelectedElsewhere = Object.entries(selectedMusicians).some(([otherInstrument, selectedId]) => {
-                  // Find the musician name for the selected ID
-                  const selectedMusician = musicians.find(m => m.id.toString() === selectedId);
-                  return otherInstrument !== instrument && selectedMusician?.name === musicianName;
-                });
-                
-                // Only show if they play this instrument AND they're not selected elsewhere
-                return playsInstrument && !isSelectedElsewhere;
-              });
-
-              return (
-                <div key={instrument} className="flex items-center gap-2">
-                  <div className="flex-grow">
-                    <Select
-                      value={selectedMusicians[instrument] || ""}
-                      onValueChange={(value) => {
-                        setSelectedMusicians(prev => ({
-                          ...prev,
-                          [instrument]: value
-                        }))
-                      }}
-                    >
-                      <SelectTrigger className={STYLES.select}>
-                        <SelectValue placeholder={instrument} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMusicians.length > 0 ? (
-                          availableMusicians.map((musician) => (
-                            <SelectItem key={musician.id} value={musician.id.toString()}>
-                              {musician.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-available" disabled>
-                            No available musicians
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedMusicians[instrument] && (
-                    <Button
-                      onClick={() => {
-                        setSelectedMusicians(prev => {
-                          const updated = { ...prev };
-                          delete updated[instrument];
-                          return updated;
-                        });
-                      }}
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Creatives */}
-        <div className={STYLES.card}>
-          <h3 className={STYLES.subsectionTitle}>Creatives</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
-              const availableCreatives = creatives.filter(c => {
-                // 1. Check if creative has this role
-                const hasRole = c.role === role;
-                
-                // 2. Check if this creative (by name) is already selected for ANY OTHER role
-                const creativeName = c.name;
-                const isSelectedElsewhere = Object.entries(selectedCreatives).some(([otherRole, selectedId]) => {
-                  // Find the creative name for the selected ID
-                  const selectedCreative = creatives.find(c => c.id.toString() === selectedId);
-                  return otherRole !== role && selectedCreative?.name === creativeName;
-                });
-                
-                // Only show if they have this role AND they're not selected elsewhere
-                return hasRole && !isSelectedElsewhere;
-              });
-
-              return (
-                <div key={role} className="flex items-center gap-2">
-                  <div className="flex-grow">
-                    <Select
-                      value={selectedCreatives[role] || ""}
-                      onValueChange={(value) => {
-                        setSelectedCreatives(prev => ({
-                          ...prev,
-                          [role]: value
-                        }))
-                      }}
-                    >
-                      <SelectTrigger className={STYLES.select}>
-                        <SelectValue placeholder={role} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableCreatives.length > 0 ? (
-                          availableCreatives.map((creative) => (
-                            <SelectItem key={creative.id} value={creative.id.toString()}>
-                              {creative.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-available" disabled>
-                            No available creatives
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedCreatives[role] && (
-                    <Button
-                      onClick={() => clearCreative(role)}
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
   )
 
-  // Add these new state variables
-  const [sermonSeries, setSermonSeries] = useState('')
-  const [sermonTitle, setSermonTitle] = useState('')
-  const [chapter, setChapter] = useState('')
-  const [verse, setVerse] = useState('')
-  const [book, setBook] = useState('')
-
-  // Add this function to clear the selected vocalist
-  const clearKeyVocal = (index: number) => {
-    setSelectedVocalists(prev => {
-      const newSelected = [...prev];
-      newSelected[index] = ''; // Clear the selection
-      return newSelected;
-    });
-  };
-
-  // Add these states to your component
-  const [bookSearch, setBookSearch] = useState('');
-  const [selectedBook, setSelectedBook] = useState(''); // New state for selected book
-  const [filteredBooks, setFilteredBooks] = useState<string[]>([]);
-  const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false);
-
-  // Add this function to your component
-  const handleBookSearch = (value: string) => {
-    setBookSearch(value);
-    
-    if (value.trim() === '') {
-      setFilteredBooks([]);
-      return;
-    }
-
-    const filtered = BIBLE_BOOKS.filter(book =>
-      book.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredBooks(filtered);
-    setIsBookDropdownOpen(true);
-  };
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!event.target) return;
-      
-      const target = event.target as HTMLElement;
-      if (!target.closest('.bible-book-search')) {
-        setIsBookDropdownOpen(false);
-        setFilteredBooks([]);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Add new state for the summary modal
-  const [showSummary, setShowSummary] = useState(false);
-
-  // Add this helper function to format the event type display
-  const getEventTypeDisplay = () => {
-    if (isOtherEvent) return eventName;
-    
-    // Convert the value to display text
-    switch (eventName) {
-      case 'sunday-service':
-        return 'Sunday Service';
-      case 'sunday-special':
-        return 'Sunday Special';
-      case 'sunday-praise-party':
-        return 'Sunday Praise Party';
-      case 'wednesday-revival':
-        return 'Wednesday Revival';
-      case 'others':
-        return 'Others';
-      default:
-        return 'Not set';
-    }
-  };
-
-  // Add these new clear functions near your other state management functions
-  const clearMusician = (instrument: string) => {
-    setSelectedMusicians(prev => {
-      const updated = { ...prev };
-      delete updated[instrument];
-      return updated;
-    });
-  };
-
-  const clearCreative = (role: string) => {
-    setSelectedCreatives(prev => {
-      const updated = { ...prev };
-      delete updated[role];
-      return updated;
-    });
-  };
-
-  // Add a new ref for the summary content
-  const summaryRef = useRef<HTMLDivElement>(null)
-
-  // Add this helper function to capture and copy screenshot
-  const captureAndCopyToClipboard = async (ref: React.RefObject<HTMLElement>) => {
-    if (ref.current) {
-      try {
-        // First, temporarily adjust color box positions for screenshot
-        const colorBoxes = ref.current.querySelectorAll('.color-box');
-        colorBoxes.forEach((box: HTMLElement) => {
-          box.style.transform = 'translateY(4px)'; // Adjust this value as needed
-        });
-
-        // Configure high resolution settings
-        const scale = 4;
-        const options = {
-          scale: scale,
-          width: ref.current.scrollWidth,
-          height: ref.current.scrollHeight,
-          scrollY: -window.scrollY,
-          windowWidth: document.documentElement.offsetWidth,
-          windowHeight: document.documentElement.offsetHeight,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#1E1E1E',
-          logging: false,
-        };
-
-        const canvas = await html2canvas(ref.current, options);
-
-        // Reset color box positions
-        colorBoxes.forEach((box: HTMLElement) => {
-          box.style.transform = 'translateY(2px)';
-        });
-
-        // Convert to blob and copy to clipboard
-        const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
-        });
-
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'image/png': blob
-          })
-        ]);
-
-        setShowSummary(false);
-        setShowNotification(true);
-        
-        // Hide notification after 3 seconds
-        setTimeout(() => {
-          setShowNotification(false);
-        }, 3000);
-        
-      } catch (error) {
-        console.error('Error capturing or copying image:', error);
-      }
-    }
-  };
-
-  // Add this near your other state declarations
-  const [showNotification, setShowNotification] = useState(false);
-
+  // Main render
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
       <main className="h-full overflow-y-auto">
@@ -1398,74 +719,7 @@ export default function ServiceSchedule() {
           </div>
 
           {/* Event Details */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Event Details</h2>
-            <div className={STYLES.card}>
-              <div className="grid grid-cols-2 gap-4">
-                {isOtherEvent ? (
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="ghost"
-                      onClick={() => setIsOtherEvent(false)}
-                      className={STYLES.button.secondary}
-                    >
-                      <ArrowLeftIcon className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      placeholder="Enter Event Name"
-                      value={eventName}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (
-                          value === '' || 
-                          (lettersOnly(value) && value.length <= 20)
-                        ) {
-                          setEventName(value);
-                        }
-                      }}
-                      maxLength={20} // Additional safety measure
-                      className={STYLES.input}
-                    />
-                  </div>
-                ) : (
-                  <Select onValueChange={handleEventTypeChange}>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Select Event Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sunday-service">Sunday Service</SelectItem>
-                      <SelectItem value="sunday-special">Sunday Special</SelectItem>
-                      <SelectItem value="sunday-praise-party">Sunday Praise Party</SelectItem>
-                      <SelectItem value="wednesday-revival">Wednesday Revival</SelectItem>
-                      <SelectItem value="others">Others</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={`w-full justify-start text-left font-normal bg-[#282828] border-none hover:bg-green-500 hover:text-white focus:border-green-500 transition-colors ${!eventDate && "text-muted-foreground"}`}
-                    >
-                      {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventDate}
-                      onSelect={(date) => {
-                        setEventDate(date)
-                        setOpen(false) // Close the calendar after selection
-                      }}
-                      initialFocus
-                      className="bg-[#282828] text-white border-green-500"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </section>
+          {renderEventDetails()}
 
           {/* Programme Flow */}
           <section className={STYLES.section}>
@@ -1477,15 +731,12 @@ export default function ServiceSchedule() {
                     placeholder="Enter Programme Name"
                     value={item.name}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      if (
-                        value === '' || 
-                        (lettersOnly(value) && value.length <= 20)
-                      ) {
-                        updateProgrammeItem(index, 'name', value);
+                      const value = e.target.value
+                      if (value === '' || (lettersOnly(value) && value.length <= 20)) {
+                        updateProgrammeItem(index, 'name', value)
                       }
                     }}
-                    maxLength={20} // Additional safety measure
+                    maxLength={20}
                     className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
                   />
                   <div className="flex items-center space-x-2">
@@ -1516,11 +767,10 @@ export default function ServiceSchedule() {
                 Add Programme Item
               </Button>
 
-              {/* Add the total duration display */}
               <div className="flex justify-end mt-4 text-gray-400">
                 Total Duration: {' '}
                 <span className="text-green-500 ml-2">
-                  {calculateTotalHours(programmeFlow).split('h')[0]} Hour & {' '}
+                  {calculateTotalHours(programmeFlow).split('h')[0]} Hour & & {' '}
                   {calculateTotalHours(programmeFlow).split('h')[1].replace('m', '')} Minutes
                 </span>
               </div>
@@ -1570,13 +820,12 @@ export default function ServiceSchedule() {
                   <label className="block mb-2 text-gray-400">Quick Generate</label>
                   <Button
                     onClick={() => {
-                      const colors = generateDressCode();
-                      setPrimaryColor(colors.primary);
-                      setSecondaryColor(colors.secondary);
+                      setPrimaryColor(generateRandomColor())
+                      setSecondaryColor(generateRandomColor())
                     }}
                     className={`w-full ${STYLES.button.primary}`}
                   >
-                    Random Dress Code
+                    Random Colors
                   </Button>
                 </div>
               </div>
@@ -1597,7 +846,7 @@ export default function ServiceSchedule() {
                       className={STYLES.input}
                       onChange={(e) => {
                         if (e.target.value === '' || lettersOnly(e.target.value)) {
-                          setSermonSeries(e.target.value);
+                          setSermonSeries(e.target.value)
                         }
                       }}
                     />
@@ -1610,7 +859,7 @@ export default function ServiceSchedule() {
                       className={STYLES.input}
                       onChange={(e) => {
                         if (e.target.value === '' || lettersOnly(e.target.value)) {
-                          setSermonTitle(e.target.value);
+                          setSermonTitle(e.target.value)
                         }
                       }}
                     />
@@ -1630,19 +879,18 @@ export default function ServiceSchedule() {
                       />
                       {isBookDropdownOpen && filteredBooks.length > 0 && (
                         <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto border border-[#333333]">
-                          {filteredBooks.map((book) => (
+                          {filteredBooks.map((bookName) => (
                             <div
-                              key={book}
+                              key={bookName}
                               className="px-3 py-2 hover:bg-[#383838] cursor-pointer"
                               onClick={() => {
-                                setSelectedBook(book);
-                                setBookSearch(book);
-                                setBook(book);
-                                setIsBookDropdownOpen(false);
-                                setFilteredBooks([]);
+                                setBookSearch(bookName)
+                                setBook(bookName)
+                                setIsBookDropdownOpen(false)
+                                setFilteredBooks([])
                               }}
                             >
-                              {book}
+                              {bookName}
                             </div>
                           ))}
                         </div>
@@ -1654,17 +902,9 @@ export default function ServiceSchedule() {
                       value={chapter}
                       className={`${STYLES.input} w-24`}
                       onChange={(e) => {
-                        const value = e.target.value;
+                        const value = e.target.value
                         if (/^\d{0,3}$/.test(value)) {
-                          setChapter(value);
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (!/[0-9]/.test(e.key)) {
-                          e.preventDefault();
-                        }
-                        if (e.target.value.length >= 3 && e.key !== 'Backspace' && e.key !== 'Delete') {
-                          e.preventDefault();
+                          setChapter(value)
                         }
                       }}
                     />
@@ -1674,21 +914,12 @@ export default function ServiceSchedule() {
                       value={verse}
                       className={`${STYLES.input} w-24`}
                       onChange={(e) => {
-                        const value = e.target.value;
+                        const value = e.target.value
                         if (
                           (value === '' || /^[0-9-]+$/.test(value)) &&
                           (value.replace('-', '').length <= 5)
                         ) {
-                          setVerse(value);
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (!/[0-9-]/.test(e.key)) {
-                          e.preventDefault();
-                        }
-                        const futureValue = e.currentTarget.value + e.key;
-                        if (futureValue.replace('-', '').length > 5) {
-                          e.preventDefault();
+                          setVerse(value)
                         }
                       }}
                     />
@@ -1721,7 +952,7 @@ export default function ServiceSchedule() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.values(setList).every(arr => arr.length === 0) ? (
+                  {Object.entries(setList).every(([_, items]) => items.length === 0) ? (
                     <tr>
                       <td colSpan={5} className="text-center py-4 text-gray-400">
                         No songs added yet
@@ -1729,7 +960,7 @@ export default function ServiceSchedule() {
                     </tr>
                   ) : (
                     Object.entries(setList).map(([category, items]) =>
-                      items.length > 0 && items.map((item, index) => (
+                      items.map((item, index) => (
                         <tr key={`${category}-${index}`} className="border-t border-[#282828]">
                           <td className="py-2 capitalize">
                             {category === 'altarCall' ? 'Altar Call' : category}
@@ -1738,7 +969,12 @@ export default function ServiceSchedule() {
                           <td className="py-2">{item.artist}</td>
                           <td className="py-2">
                             {item.youtubeLink && (
-                              <a href={item.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400">
+                              <a 
+                                href={item.youtubeLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-green-500 hover:text-green-400"
+                              >
                                 View
                               </a>
                             )}
@@ -1762,8 +998,237 @@ export default function ServiceSchedule() {
             </div>
           </section>
 
-          {/* Roles */}
-          {renderRolesSection()}
+          {/* Roles Section */}
+          <section className={STYLES.section}>
+            <h2 className={STYLES.sectionTitle}>Roles</h2>
+            <div className="grid grid-cols-2 gap-6">
+              {/* Sermon */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Sermon</h3>
+                <div className="space-y-4">
+                  <Select value={selectedPreacher} onValueChange={setSelectedPreacher}>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Preacher" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {preachers.map((preacher) => (
+                        <SelectItem key={preacher.id} value={preacher.id.toString()}>
+                          {preacher.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedSupport} onValueChange={setSelectedSupport}>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Preaching Support" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {preachingSupport.map((person) => (
+                        <SelectItem key={person.id} value={person.id.toString()}>
+                          {person.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Worship */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Worship</h3>
+                <div className="space-y-4">
+                  <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Worship Leader" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {worshipLeaders
+                        .filter(leader => {
+                          const selectedAsVocalist = selectedVocalists.includes(leader.id.toString())
+                          return !selectedAsVocalist || selectedWorshipLeader === leader.id.toString()
+                        })
+                        .map((leader) => (
+                          <SelectItem key={leader.id} value={leader.id.toString()}>
+                            {leader.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
+                    <div className="space-y-2">
+                      {keyVocals.map((vocal, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="flex-grow">
+                            <Select
+                              value={selectedVocalists[index] || ""}
+                              onValueChange={(value) => {
+                                const newSelected = [...selectedVocalists]
+                                newSelected[index] = value
+                                setSelectedVocalists(newSelected)
+                              }}
+                            >
+                              <SelectTrigger className={STYLES.select}>
+                                <SelectValue placeholder={`Select ${vocal}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {vocalists
+                                  .filter(vocalist => {
+                                    const selectedInOtherPosition = selectedVocalists
+                                      .filter((_, i) => i !== index)
+                                      .includes(vocalist.id.toString())
+                                    const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString()
+                                    return !selectedInOtherPosition && !selectedAsLeader
+                                  })
+                                  .map((vocalist) => (
+                                    <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
+                                      {vocalist.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {selectedVocalists[index] && (
+                            <Button
+                              onClick={() => clearKeyVocal(index)}
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`])
+                        setSelectedVocalists(prev => [...prev, ''])
+                      }}
+                      className={`mt-2 ${STYLES.button.primary}`}
+                    >
+                      <PlusIcon className="h-5 w-5 mr-2" />
+                      Add Voice
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Musicians */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Musicians</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
+                    const availableMusicians = musicians.filter(m => {
+                      const playsInstrument = m.instrument === instrument
+                      const musicianName = m.name
+                      const isSelectedElsewhere = Object.entries(selectedMusicians).some(([otherInstrument, selectedId]) => {
+                        const selectedMusician = musicians.find(m => m.id.toString() === selectedId)
+                        return otherInstrument !== instrument && selectedMusician?.name === musicianName
+                      })
+                      return playsInstrument && !isSelectedElsewhere
+                    })
+
+                    return (
+                      <div key={instrument} className="flex items-center gap-2">
+                        <div className="flex-grow">
+                          <Select
+                            value={selectedMusicians[instrument] || ""}
+                            onValueChange={(value) => {
+                              setSelectedMusicians(prev => ({
+                                ...prev,
+                                [instrument]: value
+                              }))
+                            }}
+                          >
+                            <SelectTrigger className={STYLES.select}>
+                              <SelectValue placeholder={instrument} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableMusicians.map((musician) => (
+                                <SelectItem key={musician.id} value={musician.id.toString()}>
+                                  {musician.name}
+                                
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedMusicians[instrument] && (
+                          <Button
+                            onClick={() => clearMusician(instrument)}
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Creatives */}
+              <div className={STYLES.card}>
+                <h3 className={STYLES.subsectionTitle}>Creatives</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
+                    const availableCreatives = creatives.filter(c => {
+                      const hasRole = c.role === role
+                      const creativeName = c.name
+                      const isSelectedElsewhere = Object.entries(selectedCreatives).some(([otherRole, selectedId]) => {
+                        const selectedCreative = creatives.find(c => c.id.toString() === selectedId)
+                        return otherRole !== role && selectedCreative?.name === creativeName
+                      })
+                      return hasRole && !isSelectedElsewhere
+                    })
+
+                    return (
+                      <div key={role} className="flex items-center gap-2">
+                        <div className="flex-grow">
+                          <Select
+                            value={selectedCreatives[role] || ""}
+                            onValueChange={(value) => {
+                              setSelectedCreatives(prev => ({
+                                ...prev,
+                                [role]: value
+                              }))
+                            }}
+                          >
+                            <SelectTrigger className={STYLES.select}>
+                              <SelectValue placeholder={role} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableCreatives.map((creative) => (
+                                <SelectItem key={creative.id} value={creative.id.toString()}>
+                                  {creative.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedCreatives[role] && (
+                          <Button
+                            onClick={() => clearCreative(role)}
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
@@ -1777,41 +1242,17 @@ export default function ServiceSchedule() {
         </Button>
       </div>
 
-      {/* Modal */}
-      {generatedLink && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center">
-          <div className={`${STYLES.card} max-w-md w-full mx-4`}>
-            <h3 className={STYLES.subsectionTitle}>Schedule Created</h3>
-            <p className="mb-4">Your schedule is available at:</p>
-            <a 
-              href={generatedLink} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-green-500 hover:text-green-400 break-all"
-            >
-              {generatedLink}
-            </a>
-            <Button 
-              onClick={() => setGeneratedLink(null)} 
-              className={`${STYLES.button.primary} mt-6 w-full`}
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
-
+      {/* Summary Modal */}
       {showSummary && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setShowSummary(false);
+              setShowSummary(false)
             }
           }}
         >
           <div className="flex flex-col gap-6">
-            {/* Separate div for the content to be captured */}
             <div ref={summaryRef} className={`${STYLES.summary.container} rounded-b-none border-b-0`}>
               <h3 className="text-xl font-bold text-green-500 mb-4">TechScript</h3>
               
@@ -1887,7 +1328,7 @@ export default function ServiceSchedule() {
                 <h4 className={STYLES.summary.sectionTitle}>Team</h4>
                 
                 <div className={STYLES.summary.teamGrid.container}>
-                  {/* Column 1 Row 1: Preaching */}
+                  {/* Preaching */}
                   <div className={STYLES.summary.teamGrid.section}>
                     <div className={STYLES.summary.teamGrid.title}>Preaching</div>
                     <div className={STYLES.summary.row}>
@@ -1900,7 +1341,7 @@ export default function ServiceSchedule() {
                     </div>
                   </div>
 
-                  {/* Column 2 Row 1: Worship */}
+                  {/* Worship */}
                   <div className={STYLES.summary.teamGrid.section}>
                     <div className={STYLES.summary.teamGrid.title}>Worship</div>
                     <div className={STYLES.summary.row}>
@@ -1909,7 +1350,7 @@ export default function ServiceSchedule() {
                     </div>
                   </div>
 
-                  {/* Column 1 Row 2: Creatives */}
+                  {/* Creatives */}
                   <div className={STYLES.summary.teamGrid.section}>
                     <div className={STYLES.summary.teamGrid.title}>Creatives</div>
                     {Object.entries(selectedCreatives).map(([role, id]) => id && (
@@ -1920,7 +1361,7 @@ export default function ServiceSchedule() {
                     ))}
                   </div>
 
-                  {/* Column 2 Row 2: Key Vocals */}
+                  {/* Key Vocals */}
                   <div className={STYLES.summary.teamGrid.section}>
                     <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
                     {selectedVocalists.map((id, index) => id && (
@@ -1931,7 +1372,7 @@ export default function ServiceSchedule() {
                     ))}
                   </div>
 
-                  {/* Column 2 Row 3: Musicians */}
+                  {/* Musicians */}
                   <div className={STYLES.summary.teamGrid.section}>
                     <div className={STYLES.summary.teamGrid.title}>Musicians</div>
                     {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
@@ -1950,7 +1391,7 @@ export default function ServiceSchedule() {
                 {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
                   <div key={category} className={STYLES.summary.setList.section}>
                     <div className={STYLES.summary.setList.category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                      {category === 'altarCall' ? 'Altar Call' : category.charAt(0).toUpperCase() + category.slice(1)}
                     </div>
                     {songs.map((song, index) => (
                       <div key={index} className={STYLES.summary.setList.row}>
@@ -1967,7 +1408,7 @@ export default function ServiceSchedule() {
               </div>
             </div>
 
-            {/* Separate div for the button with matching styles but outside summaryRef */}
+            {/* Screenshot Button */}
             <div className={`${STYLES.card} rounded-t-none border-t-0 mt-[-1px]`}>
               <Button 
                 onClick={() => captureAndCopyToClipboard(summaryRef)}
@@ -1980,6 +1421,7 @@ export default function ServiceSchedule() {
         </div>
       )}
 
+      {/* Notification */}
       {showNotification && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-notification z-50">
           Screenshot copied! Press Ctrl+V to paste

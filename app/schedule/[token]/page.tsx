@@ -10,57 +10,21 @@ const STYLES = {
   sectionTitle: "text-lg font-semibold text-green-500 mb-2",
 }
 
-interface Schedule {
-  id: string;
-  token: string;
+type Schedule = {
   event_name: string;
   event_date: string;
   dress_code?: string;
-  programme_flow: Array<{
-    name: string;
-    startTime: string;
-    endTime: string;
-  }>;
-  set_list: {
-    praise?: Array<{
-      title: string;
-      artist: string;
-      youtubeLink?: string;
-    }>;
-    worship?: Array<{
-      title: string;
-      artist: string;
-      youtubeLink?: string;
-    }>;
-    altarCall?: Array<{
-      title: string;
-      artist: string;
-      youtubeLink?: string;
-    }>;
-  };
+  programme_flow: { name: string; startTime: string; endTime: string }[];
+  set_list: { [key: string]: { title: string; artist: string; youtubeLink?: string }[] };
   team_assignments: {
-    preacher?: string;
-    preachingSupport?: string;
-    worshipLeader?: string;
+    preacher: string;
+    preachingSupport: string;
+    worshipLeader: string;
     vocalists?: string[];
-    musicians?: {
-      [key: string]: string;
-    };
-    creatives?: {
-      Lighting?: string;
-      'Visual Lyrics'?: string;
-      Prompter?: string;
-      Photography?: string;
-      'Content Writer'?: string;
-    };
+    musicians?: { [key: string]: string };
+    creatives?: { [key: string]: string };
   };
-  sermon_details?: {
-    title?: string;
-    book?: string;
-    chapter?: string;
-    verse?: string;
-  };
-}
+};
 
 export default function ScheduleView() {
   const { token } = useParams()
