@@ -184,7 +184,7 @@ export default function ServiceSchedule() {
   const [primaryColor, setPrimaryColor] = useState('#00ff00')
   const [secondaryColor, setSecondaryColor] = useState('#ffffff')
   const [programmeFlow, setProgrammeFlow] = useState([
-    { name: 'Opening Prayer', startTime: '09:00', endTime: '09:15' }
+    { name: 'Countdown Begins', startTime: '08:55', endTime: '09:00' }
   ])
   const [setList, setSetList] = useState<Record<string, SetListItem[]>>({
     praise: [],
@@ -364,8 +364,17 @@ export default function ServiceSchedule() {
   }
 
   const addProgrammeItem = () => {
-    setProgrammeFlow(prev => [...prev, { name: '', startTime: '', endTime: '' }])
-  }
+    setProgrammeFlow(prev => {
+      const lastItem = prev[prev.length - 1];
+      const newStartTime = lastItem ? lastItem.endTime : ''; // Get the end time of the last item
+      
+      return [...prev, {
+        name: '',
+        startTime: newStartTime, // Use the previous end time as the new start time
+        endTime: ''
+      }];
+    });
+  };
 
   const updateProgrammeItem = (index: number, field: 'name' | 'startTime' | 'endTime', value: string) => {
     setProgrammeFlow(prev => prev.map((item, i) =>
@@ -663,7 +672,7 @@ export default function ServiceSchedule() {
               {programmeFlow.map((item, index) => (
                 <div key={index} className="flex items-center space-x-2 mb-2">
                   <Input
-                    placeholder="Programme Name"
+                    placeholder="Enter Programme Name"
                     value={item.name}
                     onChange={(e) => updateProgrammeItem(index, 'name', e.target.value)}
                     className="flex-grow bg-[#282828] border-none hover:border-green-500 focus:border-green-500 transition-colors"
