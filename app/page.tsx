@@ -456,11 +456,7 @@ export default function ServiceSchedule() {
   }
 
   const handleCreate = () => {
-    // Generate a unique ID for the schedule
-    const scheduleId = Math.random().toString(36).substr(2, 9);
-    // In a real application, you would save the schedule data to a database here
-    // For this example, we'll just generate a dummy link
-    setGeneratedLink(`https://yourapp.com/view/${scheduleId}`);
+    setShowSummary(true); // Show summary first instead of creating immediately
   };
 
   const handleEventTypeChange = (value: string) => {
@@ -1070,6 +1066,30 @@ export default function ServiceSchedule() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Add new state for the summary modal
+  const [showSummary, setShowSummary] = useState(false);
+
+  // Add this helper function to format the event type display
+  const getEventTypeDisplay = () => {
+    if (isOtherEvent) return eventName;
+    
+    // Convert the value to display text
+    switch (eventName) {
+      case 'sunday-service':
+        return 'Sunday Service';
+      case 'sunday-special':
+        return 'Sunday Special';
+      case 'sunday-praise-party':
+        return 'Sunday Praise Party';
+      case 'wednesday-revival':
+        return 'Wednesday Revival';
+      case 'others':
+        return 'Others';
+      default:
+        return 'Not set';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
       <main className="h-full overflow-y-auto">
@@ -1485,6 +1505,171 @@ export default function ServiceSchedule() {
             >
               Close
             </Button>
+          </div>
+        </div>
+      )}
+
+      {showSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4">
+          <div className={`${STYLES.card} max-w-2xl w-full max-h-[80vh] overflow-y-auto`}>
+            <h3 className={`${STYLES.subsectionTitle} sticky top-0 bg-[#1E1E1E] py-2`}>Schedule Summary</h3>
+            
+            <div className="space-y-4">
+              {/* Event Details */}
+              <div>
+                <h4 className="text-lg font-semibold text-green-500 mb-1">Event Details</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-gray-400">Event Type:</span>
+                    <p>{getEventTypeDisplay()}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Date:</span>
+                    <p>{eventDate ? format(eventDate, "PPP") : "Not set"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Programme Flow */}
+              <div>
+                <h4 className="text-lg font-semibold text-green-500 mb-1">Programme Flow</h4>
+                <div className="space-y-1">
+                  {programmeFlow.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{item.name}</span>
+                      <span className="text-gray-400">{item.startTime} - {item.endTime}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dress Code */}
+              <div>
+                <h4 className="text-lg font-semibold text-green-500 mb-1">Dress Code</h4>
+                <div className="flex gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: primaryColor }}></div>
+                    <span>Primary: {primaryColor}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: secondaryColor }}></div>
+                    <span>Secondary: {secondaryColor}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sermon Details */}
+              <div>
+                <h4 className="text-lg font-semibold text-green-500 mb-1">Sermon Details</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-gray-400">Series:</span>
+                    <p>{sermonSeries || "Not set"}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Title:</span>
+                    <p>{sermonTitle || "Not set"}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Bible Verse:</span>
+                    <p>{book} {chapter}:{verse}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Team */}
+              <div>
+                <h4 className="text-lg font-semibold text-green-500 mb-1">Team</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {/* Preaching */}
+                  <div>
+                    <h5 className="text-gray-400">Preaching</h5>
+                    <div>
+                      <span className="text-gray-400">Preacher: </span>
+                      <span>{preachers.find(p => p.id === parseInt(selectedPreacher))?.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Support: </span>
+                      <span>{preachingSupport.find(p => p.id === parseInt(selectedSupport))?.name}</span>
+                    </div>
+                  </div>
+
+                  {/* Worship */}
+                  <div>
+                    <h5 className="text-gray-400">Worship</h5>
+                    <div>
+                      {selectedWorshipLeader && (
+                        <div>
+                          <span className="text-gray-400">Worship Leader: </span>
+                          <span>{worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name}</span>
+                        </div>
+                      )}
+                      {selectedVocalists.map((id, index) => id && (
+                        <div key={index}>
+                          <span className="text-gray-400">Vocalist {index + 1}: </span>
+                          <span>{vocalists.find(v => v.id.toString() === id)?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Musicians */}
+                  <div>
+                    <h5 className="text-gray-400">Musicians</h5>
+                    <div>
+                      {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
+                        <div key={instrument}>
+                          <span className="text-gray-400">{instrument === 'Acoustic Guitar' ? 'Acoustic Guitarist' :
+                            instrument === 'Electric Guitar' ? 'Electric Guitarist' :
+                            instrument === 'Bass Guitar' ? 'Bassist' :
+                            instrument === 'Drums' ? 'Drummer' :
+                            instrument === 'Keyboard' ? 'Keyboardist' : 
+                            instrument}: </span>
+                          <span>{musicians.find(m => m.id.toString() === id)?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Creatives */}
+                  <div>
+                    <h5 className="text-gray-400">Creatives</h5>
+                    <div>
+                      {Object.entries(selectedCreatives).map(([role, id]) => id && (
+                        <div key={role}>
+                          <span className="text-gray-400">{role === 'Lighting' ? 'Lighting Director' :
+                            role === 'Visual Lyrics' ? 'Visual Lyrics Operator' :
+                            role === 'Prompter' ? 'Prompter Operator' :
+                            role === 'Photography' ? 'Photographer' :
+                            role === 'Content Writer' ? 'Content Writer' : 
+                            role}: </span>
+                          <span>{creatives.find(c => c.id.toString() === id)?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons - Make them sticky at the bottom */}
+            <div className="sticky bottom-0 bg-[#1E1E1E] pt-4 mt-4 flex gap-4">
+              <Button 
+                onClick={() => setShowSummary(false)} 
+                className={STYLES.button.secondary}
+              >
+                Edit
+              </Button>
+              <Button 
+                onClick={() => {
+                  setShowSummary(false);
+                  handleCreate();
+                }} 
+                className={`${STYLES.button.primary} flex-1`}
+              >
+                Confirm & Create
+              </Button>
+            </div>
           </div>
         </div>
       )}
