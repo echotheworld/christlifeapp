@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import SpotifyWebApi from 'spotify-web-api-node';
+import { supabase } from '@/lib/supabase'
 
 type SpotifyCredentials = {
   clientId: string;
@@ -178,6 +179,20 @@ const searchSpotifySuggestions = async (query: string): Promise<SpotifyTrack[]> 
 
 // Add this helper function at the top of your component
 const lettersOnly = (str: string) => /^[A-Za-z\s]+$/.test(str);
+
+// Define types
+type Person = {
+  id: string
+  name: string
+}
+
+type Musician = Person & {
+  instrument: string
+}
+
+type Creative = Person & {
+  role: string
+}
 
 export default function ServiceSchedule() {
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
@@ -612,17 +627,259 @@ export default function ServiceSchedule() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Add these state declarations
-  const [sermonSeries, setSermonSeries] = useState('');
-  const [sermonTitle, setSermonTitle] = useState('');
+  // Add state for all roles
+  const [preachers, setPreachers] = useState<Person[]>([])
+  const [preachingSupport, setPreachingSupport] = useState<Person[]>([])
+  const [worshipLeaders, setWorshipLeaders] = useState<Person[]>([])
+  const [vocalists, setVocalists] = useState<Person[]>([])
+  const [musicians, setMusicians] = useState<Musician[]>([])
+  const [creatives, setCreatives] = useState<Creative[]>([])
 
-  // Add these state declarations at the top of your component with other useState declarations
-  const [chapter, setChapter] = useState('');
-  const [verse, setVerse] = useState('');
+  // Add state for selections
+  const [selectedPreacher, setSelectedPreacher] = useState<string>('')
+  const [selectedSupport, setSelectedSupport] = useState<string>('')
+  const [selectedWorshipLeader, setSelectedWorshipLeader] = useState<string>('')
+  const [selectedVocalists, setSelectedVocalists] = useState<string[]>([])
+  const [selectedMusicians, setSelectedMusicians] = useState<Record<string, string>>({})
+  const [selectedCreatives, setSelectedCreatives] = useState<Record<string, string>>({})
 
-  // Add delete function for key vocals
-  const deleteKeyVocal = (index: number) => {
-    setKeyVocals(prev => prev.filter((_, i) => i !== index));
+  // Fetch all role data on component mount
+  useEffect(() => {
+    const fetchRoleData = async () => {
+      try {
+        // Fetch preachers
+        const { data: preachersData } = await supabase
+          .from('preachers')
+          .select('id, name')
+          .order('id', { ascending: true })
+        setPreachers(preachersData || [])
+
+        // Fetch preaching support
+        const { data: supportData } = await supabase
+          .from('preaching_support')
+          .select('id, name')
+          .order('id', { ascending: true })
+        setPreachingSupport(supportData || [])
+
+        // Fetch worship leaders
+        const { data: leadersData } = await supabase
+          .from('worship_leaders')
+          .select('id, name')
+          .order('id', { ascending: true })
+        setWorshipLeaders(leadersData || [])
+
+        // Fetch vocalists
+        const { data: vocalistsData } = await supabase
+          .from('vocalists')
+          .select('id, name')
+          .order('id', { ascending: true })
+        setVocalists(vocalistsData || [])
+
+        // Fetch musicians
+        const { data: musiciansData } = await supabase
+          .from('musicians')
+          .select('id, name, instrument')
+          .order('id', { ascending: true })
+        setMusicians(musiciansData || [])
+
+        // Fetch creatives
+        const { data: creativesData } = await supabase
+          .from('creatives')
+          .select('id, name, role')
+          .order('id', { ascending: true })
+        setCreatives(creativesData || [])
+
+      } catch (error) {
+        console.error('Error fetching role data:', error)
+      }
+    }
+
+    fetchRoleData()
+  }, [])
+
+  // Update the Roles section JSX:
+  const renderRolesSection = () => (
+    <section className={STYLES.section}>
+      <h2 className={STYLES.sectionTitle}>Roles</h2>
+      <div className="grid grid-cols-2 gap-6">
+        {/* Sermon */}
+        <div className={STYLES.card}>
+          <h3 className={STYLES.subsectionTitle}>Sermon</h3>
+          <div className="space-y-4">
+            <Select value={selectedPreacher} onValueChange={setSelectedPreacher}>
+              <SelectTrigger className={STYLES.select}>
+                <SelectValue placeholder="Preacher" />
+              </SelectTrigger>
+              <SelectContent>
+                {preachers.map((preacher) => (
+                  <SelectItem key={preacher.id} value={preacher.id}>
+                    {preacher.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedSupport} onValueChange={setSelectedSupport}>
+              <SelectTrigger className={STYLES.select}>
+                <SelectValue placeholder="Preaching Support" />
+              </SelectTrigger>
+              <SelectContent>
+                {preachingSupport.map((person) => (
+                  <SelectItem key={person.id} value={person.id}>
+                    {person.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Worship */}
+        <div className={STYLES.card}>
+          <h3 className={STYLES.subsectionTitle}>Worship</h3>
+          <div className="space-y-4">
+            <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
+              <SelectTrigger className={STYLES.select}>
+                <SelectValue placeholder="Worship Leader" />
+              </SelectTrigger>
+              <SelectContent>
+                {worshipLeaders.map((leader) => (
+                  <SelectItem key={leader.id} value={leader.id}>
+                    {leader.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div>
+              <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
+              <div className="space-y-2">
+                {keyVocals.map((vocal, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Select
+                      value={selectedVocalists[index]}
+                      onValueChange={(value) => {
+                        const newSelected = [...selectedVocalists];
+                        newSelected[index] = value;
+                        setSelectedVocalists(newSelected);
+                      }}
+                    >
+                      <SelectTrigger className={STYLES.select}>
+                        <SelectValue placeholder={vocal} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vocalists.map((vocalist) => (
+                          <SelectItem key={vocalist.id} value={vocalist.id}>
+                            {vocalist.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedVocalists[index] && ( // Only show clear button if there's a selection
+                      <Button
+                        onClick={() => clearKeyVocal(index)}
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                onClick={addKeyVocal}
+                className={`mt-2 ${STYLES.button.primary}`}
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Add Voice
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Musicians */}
+        <div className={STYLES.card}>
+          <h3 className={STYLES.subsectionTitle}>Musicians</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => (
+              <Select
+                key={instrument}
+                value={selectedMusicians[instrument]}
+                onValueChange={(value) => {
+                  setSelectedMusicians(prev => ({
+                    ...prev,
+                    [instrument]: value
+                  }))
+                }}
+              >
+                <SelectTrigger className={STYLES.select}>
+                  <SelectValue placeholder={instrument} />
+                </SelectTrigger>
+                <SelectContent>
+                  {musicians
+                    .filter(m => m.instrument === instrument)
+                    .map((musician) => (
+                      <SelectItem key={musician.id} value={musician.id}>
+                        {musician.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            ))}
+          </div>
+        </div>
+
+        {/* Creatives */}
+        <div className={STYLES.card}>
+          <h3 className={STYLES.subsectionTitle}>Creatives</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => (
+              <Select
+                key={role}
+                value={selectedCreatives[role]}
+                onValueChange={(value) => {
+                  setSelectedCreatives(prev => ({
+                    ...prev,
+                    [role]: value
+                  }))
+                }}
+              >
+                <SelectTrigger className={STYLES.select}>
+                  <SelectValue placeholder={role} />
+                </SelectTrigger>
+                <SelectContent>
+                  {creatives
+                    .filter(c => c.role === role)
+                    .map((creative) => (
+                      <SelectItem key={creative.id} value={creative.id}>
+                        {creative.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+
+  // Add these new state variables
+  const [sermonSeries, setSermonSeries] = useState('')
+  const [sermonTitle, setSermonTitle] = useState('')
+  const [chapter, setChapter] = useState('')
+  const [verse, setVerse] = useState('')
+  const [book, setBook] = useState('')
+
+  // Add this function to clear the selected vocalist
+  const clearKeyVocal = (index: number) => {
+    setSelectedVocalists(prev => {
+      const newSelected = [...prev];
+      newSelected[index] = ''; // Clear the selection
+      return newSelected;
+    });
   };
 
   return (
@@ -993,191 +1250,7 @@ export default function ServiceSchedule() {
           </section>
 
           {/* Roles */}
-          <section className={STYLES.section}>
-            <h2 className={STYLES.sectionTitle}>Roles</h2>
-            <div className="grid grid-cols-2 gap-6">
-              {/* Sermon */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Sermon</h3>
-                <div className="space-y-4">
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Select Preacher" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="john">John Doe</SelectItem>
-                      <SelectItem value="jane">Jane Smith</SelectItem>
-                      <SelectItem value="mark">Mark Johnson</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Preaching Support" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="alice">Alice Brown</SelectItem>
-                      <SelectItem value="bob">Bob Wilson</SelectItem>
-                      <SelectItem value="carol">Carol White</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Worship */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Worship</h3>
-                <div className="space-y-4">
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Worship Leader" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="david">David Lee</SelectItem>
-                      <SelectItem value="emma">Emma Clark</SelectItem>
-                      <SelectItem value="frank">Frank Taylor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
-                    <div className="space-y-2">
-                      {keyVocals.map((vocal, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Select>
-                            <SelectTrigger className={STYLES.select}>
-                              <SelectValue placeholder={vocal} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="singer1">Singer 1</SelectItem>
-                              <SelectItem value="singer2">Singer 2</SelectItem>
-                              <SelectItem value="singer3">Singer 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button 
-                            onClick={() => deleteKeyVocal(index)} 
-                            variant="ghost" 
-                            className="text-red-500 hover:text-red-600 hover:bg-transparent"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={addKeyVocal}
-                      className={`mt-2 ${STYLES.button.primary}`}
-                    >
-                      <PlusIcon className="h-5 w-5 mr-2" />
-                      Add Voice
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Musicians */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Musicians</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Acoustic Guitar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="guitarist1">Guitarist 1</SelectItem>
-                      <SelectItem value="guitarist2">Guitarist 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Electric Guitar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="electricGuitarist1">Electric Guitarist 1</SelectItem>
-                      <SelectItem value="electricGuitarist2">Electric Guitarist 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Bass Guitar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bassist1">Bassist 1</SelectItem>
-                      <SelectItem value="bassist2">Bassist 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Keyboard" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="keyboardist1">Keyboardist 1</SelectItem>
-                      <SelectItem value="keyboardist2">Keyboardist 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Drums" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="drummer1">Drummer 1</SelectItem>
-                      <SelectItem value="drummer2">Drummer 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Creatives */}
-              <div className={STYLES.card}>
-                <h3 className={STYLES.subsectionTitle}>Creatives</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Lighting" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lighting1">Lighting Tech 1</SelectItem>
-                      <SelectItem value="lighting2">Lighting Tech 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Visual Lyrics" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="visual1">Visual Tech 1</SelectItem>
-                      <SelectItem value="visual2">Visual Tech 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Prompter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="prompter1">Prompter 1</SelectItem>
-                      <SelectItem value="prompter2">Prompter 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Photography" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="photographer1">Photographer 1</SelectItem>
-                      <SelectItem value="photographer2">Photographer 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className={STYLES.select}>
-                      <SelectValue placeholder="Content Writer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="writer1">Content Writer 1</SelectItem>
-                      <SelectItem value="writer2">Content Writer 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </section>
+          {renderRolesSection()}
         </div>
       </main>
 
