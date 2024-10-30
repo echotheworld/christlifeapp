@@ -194,6 +194,24 @@ type Creative = Person & {
   role: string
 }
 
+// Add this constant at the top of your file
+const BIBLE_BOOKS = [
+  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
+  'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
+  '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra',
+  'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
+  'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah', 'Lamentations',
+  'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
+  'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
+  'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+  'Matthew', 'Mark', 'Luke', 'John', 'Acts',
+  'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+  'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy',
+  '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James',
+  '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
+  'Jude', 'Revelation'
+];
+
 export default function ServiceSchedule() {
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null)
   const [eventDate, setEventDate] = useState<Date>()
@@ -738,55 +756,117 @@ export default function ServiceSchedule() {
         <div className={STYLES.card}>
           <h3 className={STYLES.subsectionTitle}>Worship</h3>
           <div className="space-y-4">
-            <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
-              <SelectTrigger className={STYLES.select}>
-                <SelectValue placeholder="Worship Leader" />
-              </SelectTrigger>
-              <SelectContent>
-                {worshipLeaders.map((leader) => (
-                  <SelectItem key={leader.id} value={leader.id}>
-                    {leader.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Worship Leader - Keeping original sort by ID */}
+            {(() => {
+              // Get available worship leaders
+              const availableLeaders = worshipLeaders.filter(leader => {
+                // Check if this leader is selected as a vocalist
+                const selectedAsVocalist = selectedVocalists.includes(leader.id.toString());
+                // Check if this leader is not the currently selected worship leader
+                const notCurrentLeader = selectedWorshipLeader !== leader.id.toString();
+                
+                return !selectedAsVocalist || !notCurrentLeader;
+              });
 
+              // If no leaders available and none selected, show disabled state
+              if (availableLeaders.length === 0 && !selectedWorshipLeader) {
+                return (
+                  <div className="opacity-50">
+                    <Select disabled>
+                      <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
+                        <SelectValue placeholder="No Worship Leader available" />
+                      </SelectTrigger>
+                    </Select>
+                  </div>
+                );
+              }
+
+              return (
+                <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
+                  <SelectTrigger className={STYLES.select}>
+                    <SelectValue placeholder="Worship Leader" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableLeaders.map((leader) => (
+                      <SelectItem key={leader.id} value={leader.id.toString()}>
+                        {leader.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              );
+            })()}
+
+            {/* Key Vocals - Now sorted by name */}
             <div>
               <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
               <div className="space-y-2">
-                {keyVocals.map((vocal, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Select
-                      value={selectedVocalists[index]}
-                      onValueChange={(value) => {
-                        const newSelected = [...selectedVocalists];
-                        newSelected[index] = value;
-                        setSelectedVocalists(newSelected);
-                      }}
-                    >
-                      <SelectTrigger className={STYLES.select}>
-                        <SelectValue placeholder={vocal} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vocalists.map((vocalist) => (
-                          <SelectItem key={vocalist.id} value={vocalist.id}>
-                            {vocalist.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedVocalists[index] && ( // Only show clear button if there's a selection
-                      <Button
-                        onClick={() => clearKeyVocal(index)}
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                {keyVocals.map((vocal, index) => {
+                  // Get available vocalists for this position and sort by name
+                  const availableVocalists = vocalists
+                    .filter(vocalist => {
+                      // Check if vocalist is already selected in another position
+                      const selectedInOtherPosition = selectedVocalists
+                        .filter((_, i) => i !== index)
+                        .includes(vocalist.id.toString());
+                      
+                      // Check if vocalist is selected as worship leader
+                      const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString();
+
+                      return !selectedInOtherPosition && !selectedAsLeader;
+                    })
+                    // Sort by name alphabetically
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                  // If no vocalists available and none selected for this position, show disabled state
+                  if (availableVocalists.length === 0 && !selectedVocalists[index]) {
+                    return (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="opacity-50 flex-grow">
+                          <Select disabled>
+                            <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
+                              <SelectValue placeholder={`No vocalist available for ${vocal}`} />
+                            </SelectTrigger>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={index} className="flex items-center gap-2">
+                      <Select
+                        value={selectedVocalists[index]}
+                        onValueChange={(value) => {
+                          const newSelected = [...selectedVocalists];
+                          newSelected[index] = value;
+                          setSelectedVocalists(newSelected);
+                        }}
                       >
-                        <XMarkIcon className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                        <SelectTrigger className={STYLES.select}>
+                          <SelectValue placeholder={vocal} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableVocalists.map((vocalist) => (
+                            <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
+                              {vocalist.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedVocalists[index] && (
+                        <Button
+                          onClick={() => clearKeyVocal(index)}
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <Button
                 onClick={addKeyVocal}
@@ -803,31 +883,65 @@ export default function ServiceSchedule() {
         <div className={STYLES.card}>
           <h3 className={STYLES.subsectionTitle}>Musicians</h3>
           <div className="grid grid-cols-2 gap-4">
-            {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => (
-              <Select
-                key={instrument}
-                value={selectedMusicians[instrument]}
-                onValueChange={(value) => {
-                  setSelectedMusicians(prev => ({
-                    ...prev,
-                    [instrument]: value
-                  }))
-                }}
-              >
-                <SelectTrigger className={STYLES.select}>
-                  <SelectValue placeholder={instrument} />
-                </SelectTrigger>
-                <SelectContent>
-                  {musicians
-                    .filter(m => m.instrument === instrument)
-                    .map((musician) => (
-                      <SelectItem key={musician.id} value={musician.id}>
+            {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
+              // Get available musicians for this instrument
+              const availableMusicians = musicians.filter(m => {
+                // Check if this entry matches the current instrument
+                const playsInstrument = m.instrument === instrument;
+
+                // Get all currently selected musicians' names
+                const selectedMusicianNames = Object.entries(selectedMusicians)
+                  .map(([inst, id]) => {
+                    const selectedMusician = musicians.find(m => m.id.toString() === id);
+                    return selectedMusician?.name;
+                  })
+                  .filter(Boolean);
+                
+                // Check if this musician (by name) is already selected somewhere else
+                const notSelectedElsewhere = !selectedMusicianNames.includes(m.name) || 
+                  selectedMusicians[instrument] === m.id.toString();
+
+                return playsInstrument && notSelectedElsewhere;
+              });
+
+              // If no musicians available and none selected for this instrument, show disabled state
+              if (availableMusicians.length === 0 && !selectedMusicians[instrument]) {
+                return (
+                  <div key={instrument} className="opacity-50">
+                    <Select disabled>
+                      <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
+                        <SelectValue placeholder={`No ${instrument} available`} />
+                      </SelectTrigger>
+                    </Select>
+                  </div>
+                );
+              }
+
+              // If there are available musicians or one is selected, show normal select
+              return (
+                <Select
+                  key={instrument}
+                  value={selectedMusicians[instrument]}
+                  onValueChange={(value) => {
+                    setSelectedMusicians(prev => ({
+                      ...prev,
+                      [instrument]: value
+                    }))
+                  }}
+                >
+                  <SelectTrigger className={STYLES.select}>
+                    <SelectValue placeholder={instrument} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMusicians.map((musician) => (
+                      <SelectItem key={musician.id} value={musician.id.toString()}>
                         {musician.name}
                       </SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            ))}
+                  </SelectContent>
+                </Select>
+              );
+            })}
           </div>
         </div>
 
@@ -835,31 +949,68 @@ export default function ServiceSchedule() {
         <div className={STYLES.card}>
           <h3 className={STYLES.subsectionTitle}>Creatives</h3>
           <div className="grid grid-cols-2 gap-4">
-            {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => (
-              <Select
-                key={role}
-                value={selectedCreatives[role]}
-                onValueChange={(value) => {
-                  setSelectedCreatives(prev => ({
-                    ...prev,
-                    [role]: value
-                  }))
-                }}
-              >
-                <SelectTrigger className={STYLES.select}>
-                  <SelectValue placeholder={role} />
-                </SelectTrigger>
-                <SelectContent>
-                  {creatives
-                    .filter(c => c.role === role)
-                    .map((creative) => (
-                      <SelectItem key={creative.id} value={creative.id}>
+            {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
+              // Get available creatives for this role
+              const availableCreatives = creatives
+                .filter(c => {
+                  // Check if this entry matches the current role
+                  const hasRole = c.role === role;
+
+                  // Get all currently selected creatives' names
+                  const selectedCreativeNames = Object.entries(selectedCreatives)
+                    .map(([r, id]) => {
+                      const selectedCreative = creatives.find(c => c.id.toString() === id);
+                      return selectedCreative?.name;
+                    })
+                    .filter(Boolean);
+                  
+                  // Check if this creative (by name) is already selected somewhere else
+                  const notSelectedElsewhere = !selectedCreativeNames.includes(c.name) || 
+                    selectedCreatives[role] === c.id.toString();
+
+                  return hasRole && notSelectedElsewhere;
+                })
+                // Sort by name alphabetically
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+              // If no creatives available and none selected for this role, show disabled state
+              if (availableCreatives.length === 0 && !selectedCreatives[role]) {
+                return (
+                  <div key={role} className="opacity-50">
+                    <Select disabled>
+                      <SelectTrigger className={`${STYLES.select} cursor-not-allowed`}>
+                        <SelectValue placeholder={`No ${role} available`} />
+                      </SelectTrigger>
+                    </Select>
+                  </div>
+                );
+              }
+
+              // If there are available creatives or one is selected, show normal select
+              return (
+                <Select
+                  key={role}
+                  value={selectedCreatives[role]}
+                  onValueChange={(value) => {
+                    setSelectedCreatives(prev => ({
+                      ...prev,
+                      [role]: value
+                    }))
+                  }}
+                >
+                  <SelectTrigger className={STYLES.select}>
+                    <SelectValue placeholder={role} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCreatives.map((creative) => (
+                      <SelectItem key={creative.id} value={creative.id.toString()}>
                         {creative.name}
                       </SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            ))}
+                  </SelectContent>
+                </Select>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -881,6 +1032,43 @@ export default function ServiceSchedule() {
       return newSelected;
     });
   };
+
+  // Add these states to your component
+  const [bookSearch, setBookSearch] = useState('');
+  const [selectedBook, setSelectedBook] = useState(''); // New state for selected book
+  const [filteredBooks, setFilteredBooks] = useState<string[]>([]);
+  const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false);
+
+  // Add this function to your component
+  const handleBookSearch = (value: string) => {
+    setBookSearch(value);
+    
+    if (value.trim() === '') {
+      setFilteredBooks([]);
+      return;
+    }
+
+    const filtered = BIBLE_BOOKS.filter(book =>
+      book.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredBooks(filtered);
+    setIsBookDropdownOpen(true);
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!event.target) return;
+      
+      const target = event.target as HTMLElement;
+      if (!target.closest('.bible-book-search')) {
+        setIsBookDropdownOpen(false);
+        setFilteredBooks([]);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
@@ -936,6 +1124,7 @@ export default function ServiceSchedule() {
                     <SelectContent>
                       <SelectItem value="sunday-service">Sunday Service</SelectItem>
                       <SelectItem value="sunday-special">Sunday Special</SelectItem>
+                      <SelectItem value="sunday-praise-party">Sunday Praise Party</SelectItem>
                       <SelectItem value="wednesday-revival">Wednesday Revival</SelectItem>
                       <SelectItem value="others">Others</SelectItem>
                     </SelectContent>
@@ -1119,16 +1308,34 @@ export default function ServiceSchedule() {
                 <div>
                   <label className="block mb-2 text-gray-400">Bible Verse</label>
                   <div className="flex gap-4">
-                    <Select>
-                      <SelectTrigger className={STYLES.select}>
-                        <SelectValue placeholder="Book" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="genesis">Genesis</SelectItem>
-                        <SelectItem value="exodus">Exodus</SelectItem>
-                        {/* Add more books as needed */}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative flex-1 bible-book-search">
+                      <Input
+                        placeholder="Book"
+                        value={bookSearch}
+                        className={STYLES.input}
+                        onChange={(e) => handleBookSearch(e.target.value)}
+                        onFocus={() => setIsBookDropdownOpen(true)}
+                      />
+                      {isBookDropdownOpen && filteredBooks.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto border border-[#333333]">
+                          {filteredBooks.map((book) => (
+                            <div
+                              key={book}
+                              className="px-3 py-2 hover:bg-[#383838] cursor-pointer"
+                              onClick={() => {
+                                setSelectedBook(book);
+                                setBookSearch(book);
+                                setBook(book);
+                                setIsBookDropdownOpen(false);
+                                setFilteredBooks([]);
+                              }}
+                            >
+                              {book}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <Input
                       placeholder="Chapter"
                       type="text"
@@ -1136,17 +1343,14 @@ export default function ServiceSchedule() {
                       className={`${STYLES.input} w-24`}
                       onChange={(e) => {
                         const value = e.target.value;
-                        // Only allow numbers and limit to 3 digits
                         if (/^\d{0,3}$/.test(value)) {
                           setChapter(value);
                         }
                       }}
                       onKeyPress={(e) => {
-                        // Prevent non-numeric input
                         if (!/[0-9]/.test(e.key)) {
                           e.preventDefault();
                         }
-                        // Prevent input if already at 3 digits and not backspace/delete
                         if (e.target.value.length >= 3 && e.key !== 'Backspace' && e.key !== 'Delete') {
                           e.preventDefault();
                         }
@@ -1159,20 +1363,17 @@ export default function ServiceSchedule() {
                       className={`${STYLES.input} w-24`}
                       onChange={(e) => {
                         const value = e.target.value;
-                        // Allow numbers and hyphen only, and limit length to 5 chars (excluding hyphen)
                         if (
-                          (value === '' || /^[0-9-]+$/.test(value)) && // Only numbers and hyphen
-                          (value.replace('-', '').length <= 5) // Limit numbers to 5 digits total
+                          (value === '' || /^[0-9-]+$/.test(value)) &&
+                          (value.replace('-', '').length <= 5)
                         ) {
                           setVerse(value);
                         }
                       }}
                       onKeyPress={(e) => {
-                        // Prevent non-numeric and non-hyphen characters
                         if (!/[0-9-]/.test(e.key)) {
                           e.preventDefault();
                         }
-                        // Prevent input if would exceed 5 digits (excluding hyphen)
                         const futureValue = e.currentTarget.value + e.key;
                         if (futureValue.replace('-', '').length > 5) {
                           e.preventDefault();
