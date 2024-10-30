@@ -666,42 +666,18 @@ export default function ServiceSchedule() {
           .from('preachers')
           .select('id, name')
           .order('id', { ascending: true })
+        
+        console.log('Fetched Preachers:', preachersData)
         setPreachers(preachersData || [])
 
-        // Fetch preaching support
+        // Add fetch for preaching support
         const { data: supportData } = await supabase
-          .from('preaching_support')
+          .from('preaching_support')  // Make sure this matches your table name
           .select('id, name')
           .order('id', { ascending: true })
+        
+        console.log('Fetched Support:', supportData)
         setPreachingSupport(supportData || [])
-
-        // Fetch worship leaders
-        const { data: leadersData } = await supabase
-          .from('worship_leaders')
-          .select('id, name')
-          .order('id', { ascending: true })
-        setWorshipLeaders(leadersData || [])
-
-        // Fetch vocalists
-        const { data: vocalistsData } = await supabase
-          .from('vocalists')
-          .select('id, name')
-          .order('id', { ascending: true })
-        setVocalists(vocalistsData || [])
-
-        // Fetch musicians
-        const { data: musiciansData } = await supabase
-          .from('musicians')
-          .select('id, name, instrument')
-          .order('id', { ascending: true })
-        setMusicians(musiciansData || [])
-
-        // Fetch creatives
-        const { data: creativesData } = await supabase
-          .from('creatives')
-          .select('id, name, role')
-          .order('id', { ascending: true })
-        setCreatives(creativesData || [])
 
       } catch (error) {
         console.error('Error fetching role data:', error)
@@ -726,7 +702,11 @@ export default function ServiceSchedule() {
               </SelectTrigger>
               <SelectContent>
                 {preachers.map((preacher) => (
-                  <SelectItem key={preacher.id} value={preacher.id}>
+                  <SelectItem 
+                    key={preacher.id} 
+                    value={preacher.id.toString()}
+                    onClick={() => console.log('Selected:', preacher.name, preacher.id)}
+                  >
                     {preacher.name}
                   </SelectItem>
                 ))}
@@ -739,7 +719,11 @@ export default function ServiceSchedule() {
               </SelectTrigger>
               <SelectContent>
                 {preachingSupport.map((person) => (
-                  <SelectItem key={person.id} value={person.id}>
+                  <SelectItem 
+                    key={person.id} 
+                    value={person.id.toString()}
+                    onClick={() => console.log('Selected Support:', person.name, person.id)}
+                  >
                     {person.name}
                   </SelectItem>
                 ))}
@@ -1526,58 +1510,62 @@ export default function ServiceSchedule() {
       )}
 
       {showSummary && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center overflow-y-auto py-10">
-          <div className={`${STYLES.card} max-w-3xl w-full mx-4`}>
-            <h3 className={`${STYLES.subsectionTitle} mb-6`}>Schedule Summary</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#1E1E1E] rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold text-white mb-6">Summary</h3>
             
-            {/* Event Details */}
+            {/* Event Details in a more compact layout */}
             <div className="space-y-6">
-              <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Event Details</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-gray-400">Event Type:</span>
-                    <p>{getEventTypeDisplay()}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Date:</span>
-                    <p>{eventDate ? format(eventDate, "PPP") : "Not set"}</p>
-                  </div>
+              {/* Basic Info - 2 columns */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-[#282828] rounded-lg">
+                <div>
+                  <span className="text-gray-400">Event Type:</span>
+                  <p className="font-medium">{getEventTypeDisplay()}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Date:</span>
+                  <p className="font-medium">{eventDate ? format(eventDate, "PPP") : "Not set"}</p>
                 </div>
               </div>
 
-              {/* Programme Flow */}
-              <div>
+              {/* Programme Flow - Compact table */}
+              <div className="p-4 bg-[#282828] rounded-lg">
                 <h4 className="text-lg font-semibold text-green-500 mb-2">Programme Flow</h4>
-                <div className="space-y-2">
-                  {programmeFlow.map((item, index) => (
-                    <div key={index} className="flex justify-between">
-                      <span>{item.name}</span>
-                      <span className="text-gray-400">{item.startTime} - {item.endTime}</span>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {programmeFlow.map((item, index) => (
+                        <tr key={index} className="border-b border-[#333333] last:border-0">
+                          <td className="py-1 pr-4">{item.name}</td>
+                          <td className="py-1 text-right text-gray-400">
+                            {item.startTime} - {item.endTime}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {/* Dress Code */}
-              <div>
+              {/* Dress Code - Inline display */}
+              <div className="p-4 bg-[#282828] rounded-lg">
                 <h4 className="text-lg font-semibold text-green-500 mb-2">Dress Code</h4>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded" style={{ backgroundColor: primaryColor }}></div>
-                    <span>Primary: {primaryColor}</span>
+                    <span className="text-sm">Primary: {primaryColor}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded" style={{ backgroundColor: secondaryColor }}></div>
-                    <span>Secondary: {secondaryColor}</span>
+                    <span className="text-sm">Secondary: {secondaryColor}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Sermon Details */}
-              <div>
+              {/* Sermon Details - Compact grid */}
+              <div className="p-4 bg-[#282828] rounded-lg">
                 <h4 className="text-lg font-semibold text-green-500 mb-2">Sermon Details</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-400">Series:</span>
                     <p>{sermonSeries || "Not set"}</p>
@@ -1586,49 +1574,26 @@ export default function ServiceSchedule() {
                     <span className="text-gray-400">Title:</span>
                     <p>{sermonTitle || "Not set"}</p>
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <span className="text-gray-400">Bible Verse:</span>
                     <p>{book} {chapter}:{verse}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Set List */}
-              <div>
-                <h4 className="text-lg font-semibold text-green-500 mb-2">Set List</h4>
-                <div className="space-y-4">
-                  {Object.entries(setList).map(([category, songs]) => (
-                    songs.length > 0 && (
-                      <div key={category}>
-                        <h5 className="text-gray-400 capitalize mb-1">
-                          {category === 'altarCall' ? 'Altar Call' : category}
-                        </h5>
-                        <div className="space-y-1">
-                          {songs.map((song, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span>{song.title}</span>
-                              <span className="text-gray-400">{song.artist}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  ))}
-                </div>
-              </div>
-
-              {/* Team */}
-              <div>
+              {/* Team - Compact columns */}
+              <div className="p-4 bg-[#282828] rounded-lg">
                 <h4 className="text-lg font-semibold text-green-500 mb-2">Team</h4>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-3 gap-4 text-sm">
                   {/* Preaching */}
                   <div>
-                    <h5 className="text-gray-400 mb-1">Preaching</h5>
+                    <h5 className="font-medium mb-1">Preaching</h5>
                     <div className="space-y-1">
                       <div>
                         <span className="text-gray-400">Preacher: </span>
                         <span>
-                          {console.log('Rendering Preacher:', selectedPreacher)}
+                          {console.log('Selected Preacher ID:', selectedPreacher)}
+                          {console.log('All Preachers:', preachers)}
                           {selectedPreacher ? 
                             preachers.find(p => {
                               console.log('Comparing:', p.id.toString(), selectedPreacher);
@@ -1638,73 +1603,35 @@ export default function ServiceSchedule() {
                           }
                         </span>
                       </div>
-                      <div>
-                        <span className="text-gray-400">Preaching Support: </span>
-                        <span>
-                          {console.log('Rendering Support:', selectedSupport)}
-                          {selectedSupport ? 
-                            preachingSupport.find(p => {
-                              console.log('Comparing:', p.id.toString(), selectedSupport);
-                              return p.id.toString() === selectedSupport;
-                            })?.name || 'Not found' 
-                            : 'Not selected'
-                          }
-                        </span>
-                      </div>
+                      <p>
+                        <span className="text-gray-400">Support: </span>
+                        {console.log('Selected Support ID:', selectedSupport)}
+                        {console.log('Preaching Support Data:', preachingSupport)}
+                        {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || 'Not selected'}
+                      </p>
                     </div>
                   </div>
 
                   {/* Worship */}
                   <div>
-                    <h5 className="text-gray-400 mb-1">Worship</h5>
+                    <h5 className="font-medium mb-1">Worship</h5>
                     <div className="space-y-1">
-                      {selectedWorshipLeader && (
-                        <div>
-                          <span className="text-gray-400">Worship Leader: </span>
-                          <span>{worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name}</span>
-                        </div>
-                      )}
+                      <p><span className="text-gray-400">Leader:</span> {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || 'Not selected'}</p>
                       {selectedVocalists.map((id, index) => id && (
-                        <div key={index}>
-                          <span className="text-gray-400">Vocalist {index + 1}: </span>
-                          <span>{vocalists.find(v => v.id.toString() === id)?.name}</span>
-                        </div>
+                        <p key={index}><span className="text-gray-400">Voice {index + 1}:</span> {vocalists.find(v => v.id.toString() === id)?.name}</p>
                       ))}
                     </div>
                   </div>
 
-                  {/* Musicians */}
+                  {/* Musicians & Creatives */}
                   <div>
-                    <h5 className="text-gray-400 mb-1">Musicians</h5>
+                    <h5 className="font-medium mb-1">Musicians & Creatives</h5>
                     <div className="space-y-1">
                       {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
-                        <div key={instrument}>
-                          <span className="text-gray-400">{instrument === 'Acoustic Guitar' ? 'Acoustic Guitarist' :
-                            instrument === 'Electric Guitar' ? 'Electric Guitarist' :
-                            instrument === 'Bass Guitar' ? 'Bassist' :
-                            instrument === 'Drums' ? 'Drummer' :
-                            instrument === 'Keyboard' ? 'Keyboardist' : 
-                            instrument}: </span>
-                          <span>{musicians.find(m => m.id.toString() === id)?.name}</span>
-                        </div>
+                        <p key={instrument}><span className="text-gray-400">{instrument}:</span> {musicians.find(m => m.id.toString() === id)?.name}</p>
                       ))}
-                    </div>
-                  </div>
-
-                  {/* Creatives */}
-                  <div>
-                    <h5 className="text-gray-400 mb-1">Creatives</h5>
-                    <div className="space-y-1">
                       {Object.entries(selectedCreatives).map(([role, id]) => id && (
-                        <div key={role}>
-                          <span className="text-gray-400">{role === 'Lighting' ? 'Lighting Director' :
-                            role === 'Visual Lyrics' ? 'Visual Lyrics Operator' :
-                            role === 'Prompter' ? 'Prompter Operator' :
-                            role === 'Photography' ? 'Photographer' :
-                            role === 'Content Writer' ? 'Content Writer' : 
-                            role}: </span>
-                          <span>{creatives.find(c => c.id.toString() === id)?.name}</span>
-                        </div>
+                        <p key={role}><span className="text-gray-400">{role}:</span> {creatives.find(c => c.id.toString() === id)?.name}</p>
                       ))}
                     </div>
                   </div>
@@ -1713,7 +1640,7 @@ export default function ServiceSchedule() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 mt-8">
+            <div className="flex gap-4 mt-6">
               <Button 
                 onClick={() => setShowSummary(false)} 
                 className={STYLES.button.secondary}
@@ -1723,8 +1650,7 @@ export default function ServiceSchedule() {
               <Button 
                 onClick={() => {
                   setShowSummary(false);
-                  // Add your existing create logic here
-                  // handleCreate();
+                  // Add your create logic here
                 }} 
                 className={`${STYLES.button.primary} flex-1`}
               >
