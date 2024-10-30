@@ -881,11 +881,19 @@ export default function ServiceSchedule() {
           <div className="grid grid-cols-2 gap-4">
             {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
               const availableMusicians = musicians.filter(m => {
+                // 1. Check if musician plays this instrument
                 const playsInstrument = m.instrument === instrument;
-                const notSelectedElsewhere = !Object.entries(selectedMusicians)
-                  .filter(([inst]) => inst !== instrument)
-                  .some(([_, id]) => id === m.id.toString());
-                return playsInstrument && notSelectedElsewhere;
+                
+                // 2. Check if this musician (by name) is already selected for ANY OTHER instrument
+                const musicianName = m.name;
+                const isSelectedElsewhere = Object.entries(selectedMusicians).some(([otherInstrument, selectedId]) => {
+                  // Find the musician name for the selected ID
+                  const selectedMusician = musicians.find(m => m.id.toString() === selectedId);
+                  return otherInstrument !== instrument && selectedMusician?.name === musicianName;
+                });
+                
+                // Only show if they play this instrument AND they're not selected elsewhere
+                return playsInstrument && !isSelectedElsewhere;
               });
 
               return (
@@ -904,11 +912,17 @@ export default function ServiceSchedule() {
                         <SelectValue placeholder={instrument} />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableMusicians.map((musician) => (
-                          <SelectItem key={musician.id} value={musician.id.toString()}>
-                            {musician.name}
+                        {availableMusicians.length > 0 ? (
+                          availableMusicians.map((musician) => (
+                            <SelectItem key={musician.id} value={musician.id.toString()}>
+                              {musician.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-available" disabled>
+                            No available musicians
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -933,15 +947,21 @@ export default function ServiceSchedule() {
           <h3 className={STYLES.subsectionTitle}>Creatives</h3>
           <div className="grid grid-cols-2 gap-4">
             {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
-              const availableCreatives = creatives
-                .filter(c => {
-                  const hasRole = c.role === role;
-                  const notSelectedElsewhere = !Object.entries(selectedCreatives)
-                    .filter(([r]) => r !== role)
-                    .some(([_, id]) => id === c.id.toString());
-                  return hasRole && notSelectedElsewhere;
-                })
-                .sort((a, b) => a.name.localeCompare(b.name));
+              const availableCreatives = creatives.filter(c => {
+                // 1. Check if creative has this role
+                const hasRole = c.role === role;
+                
+                // 2. Check if this creative (by name) is already selected for ANY OTHER role
+                const creativeName = c.name;
+                const isSelectedElsewhere = Object.entries(selectedCreatives).some(([otherRole, selectedId]) => {
+                  // Find the creative name for the selected ID
+                  const selectedCreative = creatives.find(c => c.id.toString() === selectedId);
+                  return otherRole !== role && selectedCreative?.name === creativeName;
+                });
+                
+                // Only show if they have this role AND they're not selected elsewhere
+                return hasRole && !isSelectedElsewhere;
+              });
 
               return (
                 <div key={role} className="flex items-center gap-2">
@@ -959,11 +979,17 @@ export default function ServiceSchedule() {
                         <SelectValue placeholder={role} />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableCreatives.map((creative) => (
-                          <SelectItem key={creative.id} value={creative.id.toString()}>
-                            {creative.name}
+                        {availableCreatives.length > 0 ? (
+                          availableCreatives.map((creative) => (
+                            <SelectItem key={creative.id} value={creative.id.toString()}>
+                              {creative.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-available" disabled>
+                            No available creatives
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
