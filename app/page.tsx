@@ -503,7 +503,10 @@ export default function ServiceSchedule() {
   const renderCategoryInput = (category: 'praise' | 'worship' | 'altarCall' | 'revival') => (
     <div className={STYLES.card}>
       <h3 className={STYLES.subsectionTitle}>
-        {category === 'altarCall' ? 'Altar Call' : category}
+        {category === 'praise' ? 'Praise' :
+         category === 'worship' ? 'Worship' :
+         category === 'altarCall' ? 'Altar Call' :
+         'Revival'}
       </h3>
       <div className="space-y-4">
         <div className="relative">
@@ -616,6 +619,11 @@ export default function ServiceSchedule() {
   // Add these state declarations at the top of your component with other useState declarations
   const [chapter, setChapter] = useState('');
   const [verse, setVerse] = useState('');
+
+  // Add delete function for key vocals
+  const deleteKeyVocal = (index: number) => {
+    setKeyVocals(prev => prev.filter((_, i) => i !== index));
+  };
 
   return (
     <div className="min-h-screen bg-[#121212] text-gray-200">
@@ -1033,24 +1041,33 @@ export default function ServiceSchedule() {
                     <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
                     <div className="space-y-2">
                       {keyVocals.map((vocal, index) => (
-                        <Select key={index}>
-                          <SelectTrigger className={STYLES.select}>
-                            <SelectValue placeholder={vocal} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="singer1">Singer 1</SelectItem>
-                            <SelectItem value="singer2">Singer 2</SelectItem>
-                            <SelectItem value="singer3">Singer 3</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div key={index} className="flex items-center gap-2">
+                          <Select>
+                            <SelectTrigger className={STYLES.select}>
+                              <SelectValue placeholder={vocal} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="singer1">Singer 1</SelectItem>
+                              <SelectItem value="singer2">Singer 2</SelectItem>
+                              <SelectItem value="singer3">Singer 3</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            onClick={() => deleteKeyVocal(index)} 
+                            variant="ghost" 
+                            className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
                       ))}
                     </div>
                     <Button
                       onClick={addKeyVocal}
                       className={`mt-2 ${STYLES.button.primary}`}
                     >
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Add Singer
+                      <PlusIcon className="h-5 w-5 mr-2" />
+                      Add Voice
                     </Button>
                   </div>
                 </div>
@@ -1067,6 +1084,15 @@ export default function ServiceSchedule() {
                     <SelectContent>
                       <SelectItem value="guitarist1">Guitarist 1</SelectItem>
                       <SelectItem value="guitarist2">Guitarist 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Electric Guitar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="electricGuitarist1">Electric Guitarist 1</SelectItem>
+                      <SelectItem value="electricGuitarist2">Electric Guitarist 2</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select>
@@ -1137,6 +1163,15 @@ export default function ServiceSchedule() {
                     <SelectContent>
                       <SelectItem value="photographer1">Photographer 1</SelectItem>
                       <SelectItem value="photographer2">Photographer 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className={STYLES.select}>
+                      <SelectValue placeholder="Content Writer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="writer1">Content Writer 1</SelectItem>
+                      <SelectItem value="writer2">Content Writer 2</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
