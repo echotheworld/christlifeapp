@@ -12,6 +12,7 @@ import html2canvas from 'html2canvas'
 import SpotifyWebApi from 'spotify-web-api-node'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 
 type SpotifyTrack = {
@@ -125,7 +126,7 @@ const STYLES = {
   sectionTitle: "text-xl md:text-2xl font-bold mb-4 md:mb-6 text-white",
   subsectionTitle: "text-lg md:text-xl font-semibold mb-3 md:mb-4 text-white",
   summary: {
-    container: "bg-[#1E1E1E] rounded-lg p-3 md:p-4 max-w-3xl w-full max-h-[85vh] overflow-y-auto font-mono text-sm",
+    container: "bg-[#1E1E1E] rounded-lg p-3 md:p-4 w-[95vw] md:max-w-3xl max-h-[85vh] overflow-y-auto font-mono text-sm",
     section: "p-4 bg-[#282828] rounded-lg mb-4",
     sectionTitle: "text-base font-semibold text-green-500 mb-3",
     label: "text-white inline-block w-40",
@@ -206,6 +207,11 @@ interface SpotifyApiTrack {
   }
 }
 
+// Add this helper function to check platform
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
 // Main component
 export default function ServiceSchedule(): JSX.Element {
   // State
@@ -216,7 +222,7 @@ export default function ServiceSchedule(): JSX.Element {
   const [primaryColor, setPrimaryColor] = useState('#00ff00')
   const [secondaryColor, setSecondaryColor] = useState('#ffffff')
   const [programmeFlow, setProgrammeFlow] = useState<ProgrammeItem[]>([
-    { name: 'Countdown Begins', startTime: '08:55', endTime: '09:00' }
+    { name: '', startTime: '', endTime: '' }
   ])
   const [setList, setSetList] = useState<Record<SetListCategories, SetListItem[]>>({
     praise: [],
@@ -267,6 +273,7 @@ export default function ServiceSchedule(): JSX.Element {
   const [bookSearch, setBookSearch] = useState('')
   const [filteredBooks, setFilteredBooks] = useState<string[]>([])
   const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false)
+  const [notificationMessage, setNotificationMessage] = useState('');
 
   // Refs
   const summaryRef = useRef<HTMLDivElement>(null)
@@ -519,61 +526,80 @@ export default function ServiceSchedule(): JSX.Element {
     }
   }, 500)
 
-  // Screenshot handling
-  const captureAndCopyToClipboard = async (ref: React.RefObject<HTMLElement>) => {
-    if (ref.current) {
-      try {
-        const colorBoxes = ref.current.querySelectorAll('.color-box')
-        colorBoxes.forEach((box) => {
-          if (box instanceof HTMLElement) {
-            box.style.transform = 'translateY(4px)'
-          }
-        })
+  // Copy to clipboard
+  const copyToClipboard = async (ref: React.RefObject<HTMLElement>) => {
+    if (!ref.current) return;
+    
+    try {
+      // Create a wrapper div for capture
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'absolute';
+      wrapper.style.left = '-9999px';  // Move off-screen
+      wrapper.style.width = '640px';    // Fixed width for consistency
+      wrapper.style.backgroundColor = '#1E1E1E';
+      
+      // Clone the content
+      const clone = ref.current.cloneNode(true) as HTMLElement;
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
+      clone.style.width = '100%';
+      
+      // Add clone to wrapper
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
 
-        const scale = 4
-        const options = {
-          scale,
-          width: ref.current.scrollWidth,
-          height: ref.current.scrollHeight,
-          scrollY: -window.scrollY,
-          windowWidth: document.documentElement.offsetWidth,
-          windowHeight: document.documentElement.offsetHeight,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#1E1E1E',
-          logging: false,
+      // Capture the clone
+      const canvas = await html2canvas(wrapper, {
+        backgroundColor: '#1E1E1E',
+        scale: window.devicePixelRatio * 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        width: 640,
+        windowWidth: 640
+      });
+
+      // Clean up
+      document.body.removeChild(wrapper);
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            if ('ClipboardItem' in window) {
+              const clipboardItem = new ClipboardItem({ 'image/png': blob });
+              await navigator.clipboard.write([clipboardItem]);
+              setNotificationMessage('Copied to clipboard successfully!');
+              setShowNotification(true);
+              setTimeout(() => {
+                setShowNotification(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setTimeout(() => {
+                  window.location.reload();
+                }, 500); // Small delay after scrolling before reload
+              }, 3000);
+            } else {
+              setNotificationMessage('Clipboard feature not supported on this device');
+              setShowNotification(true);
+              setTimeout(() => setShowNotification(false), 3000);
+            }
+          } catch (error) {
+            console.error('Clipboard error:', error);
+            setNotificationMessage('Failed to copy to clipboard');
+            setShowNotification(true);
+            setTimeout(() => setShowNotification(false), 3000);
+          }
         }
-
-        const canvas = await html2canvas(ref.current, options)
-
-        colorBoxes.forEach((box) => {
-          if (box instanceof HTMLElement) {
-            box.style.transform = 'translateY(2px)'
-          }
-        })
-
-        const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0)
-        })
-
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'image/png': blob
-          })
-        ])
-
-        setShowSummary(false)
-        setShowNotification(true)
-        
-        setTimeout(() => {
-          setShowNotification(false)
-        }, 3000)
-        
-      } catch (error) {
-        console.error('Error capturing or copying image:', error)
-      }
+      }, 'image/png', 1.0);
+    } catch (error) {
+      console.error('Error capturing image:', error);
+      setNotificationMessage('Failed to capture image');
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    } finally {
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
     }
-  }
+  };
 
   // Helper functions
   const calculateTotalHours = (items: ProgrammeItem[]) => {
@@ -610,6 +636,51 @@ export default function ServiceSchedule(): JSX.Element {
       default:
         return 'Not set'
     }
+  }
+
+  const handleDeleteSong = (category: keyof typeof setList, index: number) => {
+    setSetList(prev => ({
+      ...prev,
+      [category]: prev[category].filter((_, i) => i !== index)
+    }))
+  }
+
+  // Add this function in your component
+  const handleAddSong = (category: SetListCategories) => {
+    // Validate inputs
+    if (!inputs[category].title || !inputs[category].artist) {
+      // You might want to show an error message here
+      return
+    }
+
+    // Add the song to setList
+    setSetList(prev => ({
+      ...prev,
+      [category]: [
+        ...prev[category],
+        {
+          title: inputs[category].title,
+          artist: inputs[category].artist,
+          youtubeLink: inputs[category].youtubeLink
+        }
+      ]
+    }))
+
+    // Clear the inputs for this category
+    setInputs(prev => ({
+      ...prev,
+      [category]: {
+        title: '',
+        artist: '',
+        youtubeLink: ''
+      }
+    }))
+
+    // Clear any suggestions
+    setSuggestions(prev => ({
+      ...prev,
+      [category]: []
+    }))
   }
 
   // Render methods
@@ -663,7 +734,7 @@ export default function ServiceSchedule(): JSX.Element {
                 {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto p-4 bg-black border border-[#333333] overflow-hidden">
               <Calendar
                 mode="single"
                 selected={eventDate}
@@ -672,7 +743,33 @@ export default function ServiceSchedule(): JSX.Element {
                   setOpen(false)
                 }}
                 initialFocus
-                className="bg-[#282828] text-white border-green-500"
+                className="bg-black"
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center text-white",
+                  caption_label: "text-sm font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-[#1E1E1E] hover:bg-[#282828] rounded-md flex items-center justify-center",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex",
+                  head_cell: "text-gray-400 rounded-md w-8 font-normal text-[0.8rem]",
+                  row: "flex w-full mt-2",
+                  cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-[#282828] first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                  day: "h-8 w-8 p-0 font-normal text-white aria-selected:opacity-100 hover:bg-[#282828] rounded-md",
+                  day_selected: "bg-green-500 text-white hover:bg-green-600 hover:text-white focus:bg-green-500 focus:text-white",
+                  day_today: "bg-[#282828] text-white",
+                  day_outside: "text-gray-600 opacity-50",
+                  day_disabled: "text-gray-600 opacity-50",
+                  day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                  day_hidden: "invisible",
+                }}
+                components={{
+                  IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+                  IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+                }}
               />
             </PopoverContent>
           </Popover>
@@ -693,25 +790,23 @@ export default function ServiceSchedule(): JSX.Element {
             placeholder="Song Title"
             value={inputs[category].title}
             onChange={(e) => {
+              const value = e.target.value
               setInputs(prev => ({
                 ...prev,
-                [category]: { ...prev[category], title: e.target.value }
+                [category]: { ...prev[category], title: value }
               }))
-              setOpenDropdown(category)
-              debouncedSearch(category, e.target.value)
+              debouncedSearch(category, value)
             }}
-            onFocus={() => setOpenDropdown(category)}
             className={STYLES.input}
           />
-          {suggestions[category].length > 0 && openDropdown === category && (
-            <div 
-              ref={dropdownRef}
-              className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto border border-[#333333]"
-            >
+          
+          {/* Suggestions Popup */}
+          {suggestions[category]?.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 mt-1 bg-[#282828] rounded-md overflow-hidden shadow-lg border border-[#333333]">
               {suggestions[category].map((track) => (
                 <div
                   key={track.id}
-                  className="flex items-center gap-2 p-2 hover:bg-[#383838] cursor-pointer"
+                  className="p-3 hover:bg-[#383838] cursor-pointer flex items-center gap-3"
                   onClick={() => {
                     setInputs(prev => ({
                       ...prev,
@@ -721,58 +816,41 @@ export default function ServiceSchedule(): JSX.Element {
                         youtubeLink: ''
                       }
                     }))
-                    setOpenDropdown(null)
                     setSuggestions(prev => ({ ...prev, [category]: [] }))
                   }}
                 >
                   {track.thumbnail && (
-                    <div className="relative w-10 h-10">
-                      <Image
-                        src={track.thumbnail}
-                        alt=""
-                        fill
-                        className="rounded object-cover"
-                      />
-                    </div>
+                    <Image
+                      src={track.thumbnail}
+                      alt={track.title}
+                      width={40}
+                      height={40}
+                      className="rounded"
+                    />
                   )}
                   <div>
-                    <div className="font-medium">{track.title}</div>
-                    <div className="text-sm text-gray-400">{track.artist}</div>
+                    <div className="text-white font-medium">{track.title}</div>
+                    <div className="text-gray-400 text-sm">{track.artist}</div>
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-          {isLoading[category] && (
-            <div className="absolute right-3 top-3">
-              <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
             </div>
           )}
         </div>
         <Input
           placeholder="Artist Name"
           value={inputs[category].artist}
-          onChange={(e) => setInputs(prev => ({
-            ...prev,
-            [category]: { ...prev[category], artist: e.target.value }
-          }))}
+          onChange={(e) => {
+            setInputs(prev => ({
+              ...prev,
+              [category]: { ...prev[category], artist: e.target.value }
+            }))
+          }}
           className={STYLES.input}
         />
-        <Input
-          placeholder="YouTube Link"
-          value={inputs[category].youtubeLink}
-          onChange={(e) => setInputs(prev => ({
-            ...prev,
-            [category]: { ...prev[category], youtubeLink: e.target.value }
-          }))}
-          className={STYLES.input}
-        />
-        <Button
-          onClick={() => addSetListItem(category)}
-          className={`w-full ${STYLES.button.primary}`}
+        <Button 
+          onClick={() => handleAddSong(category)} 
+          className={`${STYLES.button.primary} w-full`}
         >
           Add Song
         </Button>
@@ -806,7 +884,7 @@ export default function ServiceSchedule(): JSX.Element {
             {programmeFlow.map((item, index) => (
               <div key={index} className="flex items-center space-x-2 mb-2">
                 <Input
-                  placeholder="Enter Programme Name"
+                  placeholder="Enter Programme Flow"
                   value={item.name}
                   onChange={(e) => {
                     const value = e.target.value
@@ -855,55 +933,59 @@ export default function ServiceSchedule(): JSX.Element {
           </div>
         </section>
 
-        {/* Dress Code */}
+        {/* Dress Code section */}
         <section className={STYLES.section}>
           <h2 className={STYLES.sectionTitle}>Dress Code</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-            <div>
-              <label className="block mb-2 text-gray-400">Primary Color</label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
-                />
-                <Input
-                  type="text"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className={STYLES.input}
-                />
+          <div className={STYLES.card}>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-gray-400 mb-2 block">Primary Color</label>
+                <div className="flex h-10 w-full rounded-md bg-[#282828] px-3 items-center">
+                  <input 
+                    type="color"
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="w-8 h-8 mr-2 cursor-pointer bg-transparent border-0 p-0"
+                  />
+                  <input
+                    type="text"
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="bg-transparent border-none text-white font-mono focus:outline-none w-full"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block mb-2 text-gray-400">Secondary Color</label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
-                />
-                <Input
-                  type="text"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className={STYLES.input}
-                />
+
+              <div>
+                <label className="text-gray-400 mb-2 block">Secondary Color</label>
+                <div className="flex h-10 w-full rounded-md bg-[#282828] px-3 items-center">
+                  <input 
+                    type="color"
+                    value={secondaryColor}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    className="w-8 h-8 mr-2 cursor-pointer bg-transparent border-0 p-0"
+                  />
+                  <input
+                    type="text"
+                    value={secondaryColor}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    className="bg-transparent border-none text-white font-mono focus:outline-none w-full"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block mb-2 text-gray-400">Quick Generate</label>
-              <Button
-                onClick={() => {
-                  setPrimaryColor(generateRandomColor())
-                  setSecondaryColor(generateRandomColor())
-                }}
-                className={`w-full ${STYLES.button.primary}`}
-              >
-                Random Colors
-              </Button>
+
+              <div>
+                <label className="text-gray-400 mb-2 block">Quick Generate</label>
+                <Button
+                  onClick={() => {
+                    setPrimaryColor(generateRandomColor());
+                    setSecondaryColor(generateRandomColor());
+                  }}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white transition-colors h-10"
+                >
+                  Random Colors
+                </Button>
+              </div>
             </div>
           </div>
         </section>
@@ -1023,46 +1105,34 @@ export default function ServiceSchedule(): JSX.Element {
                   <th className="pb-2">Category</th>
                   <th className="pb-2">Title</th>
                   <th className="pb-2">Artist</th>
-                  <th className="pb-2">YouTube</th>
                   <th className="pb-2 w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(setList).every(([_, items]) => items.length === 0) ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-4 text-gray-400">
+                    <td colSpan={4} className="text-center py-4 text-gray-400">
                       No songs added yet
                     </td>
                   </tr>
                 ) : (
-                  Object.entries(setList).map(([category, items]) =>
-                    items.map((item, index) => (
-                      <tr key={`${category}-${index}`} className="border-t border-[#282828]">
-                        <td className="py-2 capitalize">
-                          {category === 'altarCall' ? 'Altar Call' : category}
-                        </td>
-                        <td className="py-2">{item.title}</td>
-                        <td className="py-2">{item.artist}</td>
-                        <td className="py-2">
-                          {item.youtubeLink && (
-                            <a 
-                              href={item.youtubeLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="text-green-500 hover:text-green-400"
-                            >
-                              View
-                            </a>
-                          )}
-                        </td>
+                  Object.entries(setList).map(([category, items]) => 
+                    items.length > 0 && items.map((song, index) => (
+                      <tr key={`${category}-${index}`}>
+                        <td className="py-2">{index === 0 ? (
+                          category === 'altarCall' ? 'Altar Call' : 
+                          category.charAt(0).toUpperCase() + category.slice(1)
+                        ) : ''}</td>
+                        <td className="py-2">{song.title}</td>
+                        <td className="py-2">{song.artist}</td>
                         <td className="py-2">
                           <Button
-                            onClick={() => deleteSetListItem(category as keyof typeof setList, index)}
+                            onClick={() => handleDeleteSong(category, index)}
                             variant="ghost"
                             size="icon"
                             className="text-red-500 hover:text-red-600 hover:bg-transparent"
                           >
-                            <TrashIcon className="h-4 w-4" />
+                            <XMarkIcon className="h-4 w-4" />
                           </Button>
                         </td>
                       </tr>
@@ -1314,16 +1384,23 @@ export default function ServiceSchedule(): JSX.Element {
         {/* Summary Modal */}
         {showSummary && (
           <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 md:p-4 z-50 overflow-y-auto"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
-                setShowSummary(false)
+                setShowSummary(false);
               }
             }}
           >
-            <div className="flex flex-col gap-6">
-              <div ref={summaryRef} className={`${STYLES.summary.container} rounded-b-none border-b-0`}>
-                <h3 className="text-xl font-bold text-green-500 mb-4">TechScript</h3>
+            <div className="flex flex-col gap-4 my-4">
+              <div 
+                ref={summaryRef} 
+                data-summary-ref
+                className={`${STYLES.summary.container} rounded-b-none border-b-0`}
+              >
+                {/* Updated TechScript title */}
+                <h3 className="text-2xl font-bold text-green-500 mb-4 text-center">
+                  T E C H S C R I P T
+                </h3>
                 
                 {/* Event Details */}
                 <div className={STYLES.summary.section}>
@@ -1334,45 +1411,50 @@ export default function ServiceSchedule(): JSX.Element {
                   </div>
                   <div className={STYLES.summary.row}>
                     <span className={STYLES.summary.label}>Date</span>
-                    <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : "Not set"}</span>
+                    <span className={STYLES.summary.value}>: {eventDate ? format(eventDate, "PPP") : 'Not set'}</span>
                   </div>
                   <div className={STYLES.summary.row}>
                     <span className={STYLES.summary.label}>Duration</span>
                     <span className={STYLES.summary.value}>: {calculateTotalHours(programmeFlow)}</span>
-                  </div>
-                  <div className={STYLES.summary.row}>
-                    <span className={STYLES.summary.label}>Dress Code</span>
-                    <span className={STYLES.summary.value}>
-                      : <span className="inline-flex items-center gap-1">
-                          <span className="inline-flex items-center gap-1">
-                            <span 
-                              className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
-                              style={{ backgroundColor: primaryColor }}
-                            ></span>
-                            {primaryColor}
-                          </span>
-                          <span className="mx-3">&</span>
-                          <span className="inline-flex items-center gap-1">
-                            <span 
-                              className="inline-block w-4 h-4 border border-gray-600 translate-y-[2px] color-box" 
-                              style={{ backgroundColor: secondaryColor }}
-                            ></span>
-                            {secondaryColor}
-                          </span>
-                        </span>
-                    </span>
                   </div>
                 </div>
 
                 {/* Programme Flow */}
                 <div className={STYLES.summary.section}>
                   <h4 className={STYLES.summary.sectionTitle}>Programme Flow</h4>
-                  {programmeFlow.map((item, index) => (
-                    <div key={index} className={STYLES.summary.row}>
-                      <span className={STYLES.summary.label}>{item.name}</span>
-                      <span className={STYLES.summary.value}>: {formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
+                  {programmeFlow.some(item => item.name && item.startTime && item.endTime) ? (
+                    programmeFlow.map((item, index) => (
+                      item.name && item.startTime && item.endTime && (
+                        <div key={index} className={STYLES.summary.row}>
+                          <span className={STYLES.summary.label}>{item.name}</span>
+                          <span className={STYLES.summary.value}>
+                            : {formatTime(item.startTime)} – {formatTime(item.endTime)}
+                          </span>
+                        </div>
+                      )
+                    ))
+                  ) : (
+                    <div className={STYLES.summary.row}>
+                      <span className={STYLES.summary.value}>Not set</span>
                     </div>
-                  ))}
+                  )}
+                </div>
+
+                {/* Dress Code section */}
+                <div className={STYLES.summary.section}>
+                  <h4 className={STYLES.summary.sectionTitle}>Dress Code</h4>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Primary Color</span>
+                    <span className={STYLES.summary.value}>
+                      : <span style={{ color: primaryColor }}>●</span> <span style={{ color: primaryColor }}>{primaryColor}</span>
+                    </span>
+                  </div>
+                  <div className={STYLES.summary.row}>
+                    <span className={STYLES.summary.label}>Secondary Color</span>
+                    <span className={STYLES.summary.value}>
+                      : <span style={{ color: secondaryColor }}>●</span> <span style={{ color: secondaryColor }}>{secondaryColor}</span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Sermon Details */}
@@ -1388,7 +1470,9 @@ export default function ServiceSchedule(): JSX.Element {
                   </div>
                   <div className={STYLES.summary.row}>
                     <span className={STYLES.summary.label}>Bible Verse</span>
-                    <span className={STYLES.summary.value}>: {book} {chapter}:{verse}</span>
+                    <span className={STYLES.summary.value}>
+                      : {book && chapter && verse ? `${book} ${chapter}:${verse}` : "Not set"}
+                    </span>
                   </div>
                 </div>
 
@@ -1400,56 +1484,92 @@ export default function ServiceSchedule(): JSX.Element {
                     {/* Preaching */}
                     <div className={STYLES.summary.teamGrid.section}>
                       <div className={STYLES.summary.teamGrid.title}>Preaching</div>
-                      <div className={STYLES.summary.row}>
-                        <span className={STYLES.summary.label}>Preacher</span>
-                        <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name || "Not selected"}</span>
-                      </div>
-                      <div className={STYLES.summary.row}>
-                        <span className={STYLES.summary.label}>Support</span>
-                        <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name || "Not selected"}</span>
-                      </div>
+                      {(selectedPreacher || selectedSupport) ? (
+                        <>
+                          {selectedPreacher && (
+                            <div className={STYLES.summary.row}>
+                              <span className={STYLES.summary.label}>Preacher</span>
+                              <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name}</span>
+                            </div>
+                          )}
+                          {selectedSupport && (
+                            <div className={STYLES.summary.row}>
+                              <span className={STYLES.summary.label}>Support</span>
+                              <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className={STYLES.summary.row}>
+                          <span className={STYLES.summary.value}>Not set</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Worship */}
                     <div className={STYLES.summary.teamGrid.section}>
                       <div className={STYLES.summary.teamGrid.title}>Worship</div>
-                      <div className={STYLES.summary.row}>
-                        <span className={STYLES.summary.label}>Worship Leader</span>
-                        <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name || "Not selected"}</span>
-                      </div>
+                      {selectedWorshipLeader ? (
+                        <div className={STYLES.summary.row}>
+                          <span className={STYLES.summary.label}>Worship Leader</span>
+                          <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name}</span>
+                        </div>
+                      ) : (
+                        <div className={STYLES.summary.row}>
+                          <span className={STYLES.summary.value}>Not set</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Creatives */}
                     <div className={STYLES.summary.teamGrid.section}>
                       <div className={STYLES.summary.teamGrid.title}>Creatives</div>
-                      {Object.entries(selectedCreatives).map(([role, id]) => id && (
-                        <div key={role} className={STYLES.summary.row}>
-                          <span className={STYLES.summary.label}>{role}</span>
-                          <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
+                      {Object.entries(selectedCreatives).some(([_, id]) => id) ? (
+                        Object.entries(selectedCreatives).map(([role, id]) => id && (
+                          <div key={role} className={STYLES.summary.row}>
+                            <span className={STYLES.summary.label}>{role}</span>
+                            <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className={STYLES.summary.row}>
+                          <span className={STYLES.summary.value}>Not set</span>
                         </div>
-                      ))}
+                      )}
                     </div>
 
                     {/* Key Vocals */}
                     <div className={STYLES.summary.teamGrid.section}>
                       <div className={STYLES.summary.teamGrid.title}>Key Vocals</div>
-                      {selectedVocalists.map((id, index) => id && (
-                        <div key={index} className={STYLES.summary.row}>
-                          <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
-                          <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
+                      {selectedVocalists.some(id => id) ? (
+                        selectedVocalists.map((id, index) => id && (
+                          <div key={index} className={STYLES.summary.row}>
+                            <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
+                            <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className={STYLES.summary.row}>
+                          <span className={STYLES.summary.value}>Not set</span>
                         </div>
-                      ))}
+                      )}
                     </div>
 
                     {/* Musicians */}
                     <div className={STYLES.summary.teamGrid.section}>
                       <div className={STYLES.summary.teamGrid.title}>Musicians</div>
-                      {Object.entries(selectedMusicians).map(([instrument, id]) => id && (
-                        <div key={instrument} className={STYLES.summary.row}>
-                          <span className={STYLES.summary.label}>{instrument}</span>
-                          <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
+                      {Object.entries(selectedMusicians).some(([_, id]) => id) ? (
+                        Object.entries(selectedMusicians).map(([instrument, id]) => id && (
+                          <div key={instrument} className={STYLES.summary.row}>
+                            <span className={STYLES.summary.label}>{instrument}</span>
+                            <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className={STYLES.summary.row}>
+                          <span className={STYLES.summary.value}>Not set</span>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1457,43 +1577,53 @@ export default function ServiceSchedule(): JSX.Element {
                 {/* Set List */}
                 <div className={STYLES.summary.section}>
                   <h4 className={STYLES.summary.sectionTitle}>Set List</h4>
-                  {Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
-                    <div key={category} className={STYLES.summary.setList.section}>
-                      <div className={STYLES.summary.setList.category}>
-                        {category === 'altarCall' ? 'Altar Call' : category.charAt(0).toUpperCase() + category.slice(1)}
-                      </div>
-                      {songs.map((song, index) => (
-                        <div key={index} className={STYLES.summary.setList.row}>
-                          <span className={STYLES.summary.setList.label}>
-                            {index + 1}. {song.title}
-                          </span>
-                          <span className={STYLES.summary.setList.value}>
-                            : {song.artist}
-                          </span>
+                  {Object.entries(setList).some(([_, songs]) => songs.length > 0) ? (
+                    Object.entries(setList).map(([category, songs]) => songs.length > 0 && (
+                      <div key={category} className={STYLES.summary.setList.section}>
+                        <div className={STYLES.summary.setList.category}>
+                          {category === 'altarCall' ? 'Altar Call' : category.charAt(0).toUpperCase() + category.slice(1)}
                         </div>
-                      ))}
+                        {songs.map((song, index) => (
+                          <div key={index} className={STYLES.summary.setList.row}>
+                            <span className={STYLES.summary.setList.label}>
+                              {index + 1}. {song.title}
+                            </span>
+                            <span className={STYLES.summary.setList.value}>
+                              : {song.artist}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  ) : (
+                    <div className={STYLES.summary.row}>
+                      <span className={STYLES.summary.value}>Not set</span>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              {/* Screenshot Button */}
+              {/* Updated buttons container */}
               <div className={`${STYLES.card} rounded-t-none border-t-0 mt-[-1px]`}>
-                <Button 
-                  onClick={() => captureAndCopyToClipboard(summaryRef)}
-                  className={`${STYLES.button.primary} w-full`}
-                >
-                  Take Screenshot
-                </Button>
+                {'ClipboardItem' in window && (
+                  <Button 
+                    onClick={() => copyToClipboard(summaryRef)}
+                    className={`${STYLES.button.primary} w-full`}
+                  >
+                    Copy to Clipboard
+                  </Button>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Notification */}
+        {/* Updated Notification */}
         {showNotification && (
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-notification z-50">
-            Screenshot copied! Press Ctrl+V to paste
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-green-500 text-white px-8 py-4 rounded-lg shadow-lg text-lg font-medium">
+              {notificationMessage}
+            </div>
           </div>
         )}
       </main>
