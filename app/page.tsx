@@ -13,6 +13,24 @@ import SpotifyWebApi from 'spotify-web-api-node'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { GripVertical } from 'lucide-react'; // For burger/grip icon
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import type { DragEndEvent } from '@dnd-kit/core';
 
 
 type SpotifyTrack = {
@@ -64,7 +82,7 @@ type CategoryInputs = {
 }
 
 // Move this type definition before the component and other state declarations
-type SetListCategories = 'praise' | 'worship' | 'altarCall' | 'revival'
+type SetListCategories = 'praise' | 'worship' | 'altarCall' | 'revival' | '';
 
 // Initialize Spotify API
 const spotifyApi = new SpotifyWebApi({
@@ -101,16 +119,6 @@ const formatTime = (time: string) => {
 
 const lettersOnly = (str: string) => /^[A-Za-z\s]+$/.test(str)
 
-const debounce = <T extends string>(
-  func: (category: T, query: string) => Promise<void> | void,
-  wait: number
-): (category: T, query: string) => void => {
-  let timeout: NodeJS.Timeout
-  return (category: T, query: string) => {
-    clearTimeout(timeout)
-    timeout = setTimeout(() => func(category, query), wait)
-  }
-}
 
 // Styles
 const STYLES = {
@@ -193,24 +201,20 @@ type Database = {
   }
 }
 
-// Add this interface for Spotify API track type
+// Add this interface near your other type definitions at the top of the file
 interface SpotifyApiTrack {
-  id: string
-  name: string
-  artists: Array<{ name: string }>
+  id: string;
+  name: string;
+  artists: Array<{ name: string }>;
   album: {
-    name: string
-    images: Array<{ url: string }>
-  }
+    name: string;
+    images: Array<{ url: string }>;
+  };
   external_urls: {
-    spotify: string
-  }
+    spotify: string;
+  };
 }
 
-// Add this helper function to check platform
-const isMobile = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
 
 // Main component
 export default function ServiceSchedule(): JSX.Element {
@@ -225,6 +229,7 @@ export default function ServiceSchedule(): JSX.Element {
     { name: '', startTime: '', endTime: '' }
   ])
   const [setList, setSetList] = useState<Record<SetListCategories, SetListItem[]>>({
+    "": [],
     praise: [],
     worship: [],
     altarCall: [],
@@ -234,20 +239,10 @@ export default function ServiceSchedule(): JSX.Element {
   const [showSummary, setShowSummary] = useState(false)
   const [showNotification, setShowNotification] = useState(false)
   const [open, setOpen] = useState(false)
-  const [suggestions, setSuggestions] = useState<Record<SetListCategories, SpotifyTrack[]>>({
-    praise: [],
-    worship: [],
-    altarCall: [],
-    revival: []
-  })
-  const [isLoading, setIsLoading] = useState<Record<SetListCategories, boolean>>({
-    praise: false,
-    worship: false,
-    altarCall: false,
-    revival: false
-  })
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
+  const [_openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [inputs, setInputs] = useState<Record<SetListCategories, CategoryInputs>>({
+    '': { title: '', artist: '', youtubeLink: '' },
     praise: { title: '', artist: '', youtubeLink: '' },
     worship: { title: '', artist: '', youtubeLink: '' },
     altarCall: { title: '', artist: '', youtubeLink: '' },
@@ -274,6 +269,9 @@ export default function ServiceSchedule(): JSX.Element {
   const [filteredBooks, setFilteredBooks] = useState<string[]>([])
   const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [currentCategory, setCurrentCategory] = useState<SetListCategories>('');
+  const [songSearch, setSongSearch] = useState('');
+  const [showSpotifyResults, setShowSpotifyResults] = useState(false);
 
   // Refs
   const summaryRef = useRef<HTMLDivElement>(null)
@@ -348,18 +346,13 @@ export default function ServiceSchedule(): JSX.Element {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setOpenDropdown(null)
-        setSuggestions({
-          praise: [],
-          worship: [],
-          altarCall: [],
-          revival: []
-        })
+        setSpotifyResults([])
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [setOpenDropdown])
 
   // Spotify authentication
   const authenticateSpotify = async () => {
@@ -418,30 +411,6 @@ export default function ServiceSchedule(): JSX.Element {
     setIsBookDropdownOpen(true)
   }
 
-  const addSetListItem = (category: keyof typeof setList) => {
-    if (!inputs[category].title.trim()) return
-
-    setSetList(prev => ({
-      ...prev,
-      [category]: [...prev[category], {
-        ...inputs[category],
-        isLoading: false,
-        isDetailsVisible: false,
-      }]
-    }))
-
-    setInputs(prev => ({
-      ...prev,
-      [category]: { title: '', artist: '', youtubeLink: '' }
-    }))
-  }
-
-  const deleteSetListItem = (category: keyof typeof setList, index: number) => {
-    setSetList(prev => ({
-      ...prev,
-      [category]: prev[category].filter((_, i) => i !== index)
-    }))
-  }
 
   const addProgrammeItem = () => {
     setProgrammeFlow(prev => {
@@ -492,39 +461,6 @@ export default function ServiceSchedule(): JSX.Element {
       return updated
     })
   }
-
-  // Spotify search
-  const debouncedSearch = debounce(async (category: string, query: string) => {
-    if (!query.trim()) {
-      setSuggestions(prev => ({ ...prev, [category]: [] }))
-      return
-    }
-
-    setIsLoading(prev => ({ ...prev, [category]: true }))
-
-    try {
-      if (!spotifyApi.getAccessToken()) {
-        const authenticated = await authenticateSpotify()
-        if (!authenticated) return
-      }
-
-      const results = await spotifyApi.searchTracks(query, { limit: 5 })
-      const tracks: SpotifyTrack[] = results.body.tracks?.items.map((track: SpotifyApiTrack) => ({
-        id: track.id,
-        title: track.name,
-        artist: track.artists.map(artist => artist.name).join(', '),
-        album: track.album.name,
-        thumbnail: track.album.images[0]?.url,
-        spotifyUrl: track.external_urls.spotify
-      })) || []
-
-      setSuggestions(prev => ({ ...prev, [category]: tracks }))
-    } catch (error) {
-      console.error('Error searching Spotify:', error)
-    } finally {
-      setIsLoading(prev => ({ ...prev, [category]: false }))
-    }
-  }, 500)
 
   // Copy to clipboard
   const copyToClipboard = async (ref: React.RefObject<HTMLElement>) => {
@@ -647,26 +583,20 @@ export default function ServiceSchedule(): JSX.Element {
 
   // Add this function in your component
   const handleAddSong = (category: SetListCategories) => {
-    // Validate inputs
-    if (!inputs[category].title || !inputs[category].artist) {
-      // You might want to show an error message here
-      return
-    }
+    if (!inputs[category].title || !inputs[category].artist) return;
 
-    // Add the song to setList
     setSetList(prev => ({
       ...prev,
-      [category]: [
-        ...prev[category],
-        {
-          title: inputs[category].title,
-          artist: inputs[category].artist,
-          youtubeLink: inputs[category].youtubeLink
-        }
-      ]
-    }))
+      [category]: [...prev[category], {
+        title: inputs[category].title,
+        artist: inputs[category].artist,
+        youtubeLink: inputs[category].youtubeLink,
+        isLoading: false,
+        isDetailsVisible: false
+      }]
+    }));
 
-    // Clear the inputs for this category
+    // Clear inputs after adding
     setInputs(prev => ({
       ...prev,
       [category]: {
@@ -674,14 +604,8 @@ export default function ServiceSchedule(): JSX.Element {
         artist: '',
         youtubeLink: ''
       }
-    }))
-
-    // Clear any suggestions
-    setSuggestions(prev => ({
-      ...prev,
-      [category]: []
-    }))
-  }
+    }));
+  };
 
   // Render methods
   const renderEventDetails = () => (
@@ -714,7 +638,7 @@ export default function ServiceSchedule(): JSX.Element {
           ) : (
             <Select onValueChange={handleEventTypeChange}>
               <SelectTrigger className={STYLES.select}>
-                <SelectValue placeholder="Select Event Type" />
+                <SelectValue placeholder="Event Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="sunday-service">Sunday Service</SelectItem>
@@ -767,8 +691,8 @@ export default function ServiceSchedule(): JSX.Element {
                   day_hidden: "invisible",
                 }}
                 components={{
-                  IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-                  IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+                  IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+                  IconRight: () => <ChevronRight className="h-4 w-4" />,
                 }}
               />
             </PopoverContent>
@@ -778,85 +702,178 @@ export default function ServiceSchedule(): JSX.Element {
     </section>
   )
 
-  const renderCategoryInput = (category: keyof typeof setList) => (
-    <div className={STYLES.card}>
-      <h3 className={STYLES.subsectionTitle}>
-        {category === 'altarCall' ? 'Altar Call' :
-         category.charAt(0).toUpperCase() + category.slice(1)}
-      </h3>
-      <div className="space-y-4">
-        <div className="relative">
-          <Input
-            placeholder="Song Title"
-            value={inputs[category].title}
-            onChange={(e) => {
-              const value = e.target.value
-              setInputs(prev => ({
-                ...prev,
-                [category]: { ...prev[category], title: value }
-              }))
-              debouncedSearch(category, value)
-            }}
-            className={STYLES.input}
-          />
-          
-          {/* Suggestions Popup */}
-          {suggestions[category]?.length > 0 && (
-            <div className="absolute z-50 left-0 right-0 mt-1 bg-[#282828] rounded-md overflow-hidden shadow-lg border border-[#333333]">
-              {suggestions[category].map((track) => (
-                <div
-                  key={track.id}
-                  className="p-3 hover:bg-[#383838] cursor-pointer flex items-center gap-3"
-                  onClick={() => {
-                    setInputs(prev => ({
-                      ...prev,
-                      [category]: {
-                        title: track.title,
-                        artist: track.artist,
-                        youtubeLink: ''
-                      }
-                    }))
-                    setSuggestions(prev => ({ ...prev, [category]: [] }))
-                  }}
-                >
-                  {track.thumbnail && (
-                    <Image
-                      src={track.thumbnail}
-                      alt={track.title}
-                      width={40}
-                      height={40}
-                      className="rounded"
-                    />
-                  )}
-                  <div>
-                    <div className="text-white font-medium">{track.title}</div>
-                    <div className="text-gray-400 text-sm">{track.artist}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <Input
-          placeholder="Artist Name"
-          value={inputs[category].artist}
-          onChange={(e) => {
-            setInputs(prev => ({
-              ...prev,
-              [category]: { ...prev[category], artist: e.target.value }
-            }))
-          }}
-          className={STYLES.input}
-        />
-        <Button 
-          onClick={() => handleAddSong(category)} 
-          className={`${STYLES.button.primary} w-full`}
+  // Inside your ServiceSchedule component, near the top with other state declarations:
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Add the handleDragEnd function if not already present
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!active || !over || active.id === over.id) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    const [activeCategory, activeIndex] = activeId.split('-');
+    const [overCategory, overIndex] = overId.split('-');
+
+    if (activeCategory === overCategory) {
+      setSetList(prev => {
+        const newItems = [...prev[activeCategory as SetListCategories]];
+        const oldIndex = parseInt(activeIndex);
+        const newIndex = parseInt(overIndex);
+        return {
+          ...prev,
+          [activeCategory]: arrayMove(newItems, oldIndex, newIndex),
+        };
+      });
+    }
+  };
+
+  // Add these handlers
+  const handleSongSearch = async (query: string) => {
+    setSongSearch(query);
+    
+    if (!query) {
+      setSpotifyResults([]);
+      setShowSpotifyResults(false);
+      return;
+    }
+
+    try {
+      // Authenticate with Spotify if we don't have a token
+      if (!spotifyApi.getAccessToken()) {
+        const authenticated = await authenticateSpotify();
+        if (!authenticated) {
+          console.error('Failed to authenticate with Spotify');
+          return;
+        }
+      }
+
+      const results = await spotifyApi.searchTracks(query, { limit: 5 });
+      
+      if (results.body?.tracks?.items) {
+        const tracks: SpotifyTrack[] = results.body.tracks.items.map((track: SpotifyApiTrack) => ({
+          id: track.id,
+          title: track.name,
+          artist: track.artists.map(a => a.name).join(', '),
+          album: track.album.name,
+          thumbnail: track.album.images[2]?.url,
+          spotifyUrl: track.external_urls.spotify
+        }));
+        
+        setSpotifyResults(tracks);
+        setShowSpotifyResults(true);
+      }
+    } catch (error) {
+      console.error('Error searching Spotify:', error);
+      setSpotifyResults([]);
+      setShowSpotifyResults(false);
+    }
+  };
+
+  // First, create a SortableRow component that uses tr
+  const SortableRow: React.FC<{
+    id: string;
+    song: SetListItem;
+    category: string;
+    index: number;
+    onDelete: (category: SetListCategories, index: number) => void;
+  }> = ({ id, song, category, index, onDelete }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+    } = useSortable({ id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    // Helper function to format category display
+    const formatCategory = (category: string) => {
+      if (category === 'altarCall') return 'Altar Call';
+      return category.charAt(0).toUpperCase() + category.slice(1);
+    };
+
+    return (
+      <div 
+        ref={setNodeRef} 
+        style={style} 
+        className="flex items-center gap-4 py-2 px-4 bg-[#282828] rounded-lg mb-2"
+      >
+        <button
+          className="opacity-50 hover:opacity-100 cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
         >
-          Add Song
+          <GripVertical className="h-4 w-4 text-gray-400" />
+        </button>
+        
+        <div className="flex-grow">
+          <div className="font-medium text-white">{song.title}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-gray-400">{song.artist}</div>
+            <span className="text-xs px-2 py-0.5 bg-[#333] rounded-full text-gray-300">
+              {formatCategory(category)}
+            </span>
+          </div>
+        </div>
+
+        <Button
+          onClick={() => onDelete(category as SetListCategories, index)}
+          variant="ghost"
+          size="icon"
+          className="text-red-500 hover:text-red-600 hover:bg-transparent"
+        >
+          <XMarkIcon className="h-4 w-4" />
         </Button>
       </div>
+    );
+  };
+
+  // Then update the table section
+  <DndContext
+    sensors={sensors}
+    collisionDetection={closestCenter}
+    onDragEnd={handleDragEnd}
+  >
+    <div className="space-y-2">
+      {Object.entries(setList).every(([_, items]) => items.length === 0) ? (
+        <div className="text-center py-4 text-gray-400">
+          No songs added yet
+        </div>
+      ) : (
+        <SortableContext
+          items={Object.entries(setList).flatMap(([category, songs]) => 
+            songs.map((_, index) => `${category}-${index}`)
+          )}
+          strategy={verticalListSortingStrategy}
+        >
+          {Object.entries(setList).flatMap(([category, songs]) =>
+            songs.map((song, index) => (
+              <SortableRow
+                key={`${category}-${index}`}
+                id={`${category}-${index}`}
+                song={song}
+                category={category}
+                index={index}
+                onDelete={handleDeleteSong}
+              />
+            ))
+          )}
+        </SortableContext>
+      )}
     </div>
-  )
+  </DndContext>
 
   // Main render
   return (
@@ -864,7 +881,7 @@ export default function ServiceSchedule(): JSX.Element {
       <main className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className={STYLES.section}>
-          <h1 className="text-4xl font-bold text-white mb-2">TechScript Generator</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">TechScript Generator v2</h1>
           <p className="text-lg text-gray-400">by Echo</p>
           <div className="flex items-center space-x-2 mt-6">
             <ClockIcon className="h-5 w-5 text-green-500" />
@@ -1090,57 +1107,142 @@ export default function ServiceSchedule(): JSX.Element {
         {/* Set List */}
         <section className={STYLES.section}>
           <h2 className={STYLES.sectionTitle}>Set List</h2>
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            {renderCategoryInput('praise')}
-            {renderCategoryInput('worship')}
-            {renderCategoryInput('altarCall')}
-            {renderCategoryInput('revival')}
-          </div>
           
-          {/* Songs Table */}
           <div className={STYLES.card}>
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-gray-400">
-                  <th className="pb-2">Category</th>
-                  <th className="pb-2">Title</th>
-                  <th className="pb-2">Artist</th>
-                  <th className="pb-2 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(setList).every(([_, items]) => items.length === 0) ? (
-                  <tr>
-                    <td colSpan={4} className="text-center py-4 text-gray-400">
-                      No songs added yet
-                    </td>
-                  </tr>
+            <div className="flex items-center gap-4 mb-6">
+              {/* Category Select */}
+              <Select
+                value={currentCategory}
+                onValueChange={(value: SetListCategories) => setCurrentCategory(value)}
+              >
+                <SelectTrigger className={`${STYLES.select} w-48`}>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="praise">Praise</SelectItem>
+                  <SelectItem value="worship">Worship</SelectItem>
+                  <SelectItem value="altarCall">Altar Call</SelectItem>
+                  <SelectItem value="revival">Revival</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Search and Add Song Row */}
+              <div className="flex-1 flex gap-2">
+                <div className="flex-1 relative">
+                  <Input
+                    placeholder="Search Song Title"
+                    value={currentCategory ? inputs[currentCategory]?.title || songSearch : ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleSongSearch(value);
+                      if (currentCategory) {
+                        setInputs(prev => ({
+                          ...prev,
+                          [currentCategory]: {
+                            ...prev[currentCategory],
+                            title: value
+                          }
+                        }));
+                      }
+                    }}
+                    className={STYLES.input}
+                    disabled={!currentCategory}
+                  />
+                  {showSpotifyResults && spotifyResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {spotifyResults.map((track) => (
+                        <div
+                          key={track.id}
+                          className="px-4 py-2 hover:bg-[#383838] cursor-pointer flex items-center gap-3"
+                          onClick={() => {
+                            setInputs(prev => ({
+                              ...prev,
+                              [currentCategory]: {
+                                ...prev[currentCategory],
+                                title: track.title,
+                                artist: track.artist
+                              }
+                            }));
+                            setSpotifyResults([]);
+                            setShowSpotifyResults(false);
+                            setSongSearch('');
+                          }}
+                        >
+                          {track.thumbnail && (
+                            <Image
+                              src={track.thumbnail}
+                              alt={track.title}
+                              width={40}
+                              height={40}
+                              className="rounded"
+                            />
+                          )}
+                          <div>
+                            <div className="font-medium">{track.title}</div>
+                            <div className="text-sm text-gray-400">{track.artist}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Input
+                  placeholder="Artist"
+                  value={currentCategory ? inputs[currentCategory].artist : ''}
+                  onChange={(e) => setInputs(prev => ({
+                    ...prev,
+                    [currentCategory]: {
+                      ...prev[currentCategory],
+                      artist: e.target.value
+                    }
+                  }))}
+                  className={`${STYLES.input} w-64`}
+                  disabled={!currentCategory}
+                />
+                <Button 
+                  onClick={() => handleAddSong(currentCategory)} 
+                  className={`${STYLES.button.primary}`}
+                  disabled={!inputs[currentCategory]?.title || !currentCategory}
+                >
+                  <PlusIcon className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Song List */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="space-y-2">
+                {Object.entries(setList).every(([_, songs]) => songs.length === 0) ? (
+                  <div className="text-center py-4 text-gray-400">
+                    No songs added yet
+                  </div>
                 ) : (
-                  Object.entries(setList).map(([category, items]) => 
-                    items.length > 0 && items.map((song, index) => (
-                      <tr key={`${category}-${index}`}>
-                        <td className="py-2">{index === 0 ? (
-                          category === 'altarCall' ? 'Altar Call' : 
-                          category.charAt(0).toUpperCase() + category.slice(1)
-                        ) : ''}</td>
-                        <td className="py-2">{song.title}</td>
-                        <td className="py-2">{song.artist}</td>
-                        <td className="py-2">
-                          <Button
-                            onClick={() => handleDeleteSong(category, index)}
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-600 hover:bg-transparent"
-                          >
-                            <XMarkIcon className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )
+                  <SortableContext
+                    items={Object.entries(setList).flatMap(([category, songs]) => 
+                      songs.map((_, index) => `${category}-${index}`)
+                    )}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {Object.entries(setList).flatMap(([category, songs]) =>
+                      songs.map((song, index) => (
+                        <SortableRow
+                          key={`${category}-${index}`}
+                          id={`${category}-${index}`}
+                          song={song}
+                          category={category}
+                          index={index}
+                          onDelete={handleDeleteSong}
+                        />
+                      ))
+                    )}
+                  </SortableContext>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </DndContext>
           </div>
         </section>
 
