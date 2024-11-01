@@ -943,7 +943,7 @@ export default function ServiceSchedule(): JSX.Element {
             <div className="flex justify-end mt-4 text-gray-400">
               Total Duration: {' '}
               <span className="text-green-500 ml-2">
-                {calculateTotalHours(programmeFlow).split('h')[0]} Hour & & {' '}
+                {calculateTotalHours(programmeFlow).split('h')[0]} Hour & {' '}
                 {calculateTotalHours(programmeFlow).split('h')[1].replace('m', '')} Minutes
               </span>
             </div>
