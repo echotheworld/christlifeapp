@@ -1109,13 +1109,13 @@ export default function ServiceSchedule(): JSX.Element {
           <h2 className={STYLES.sectionTitle}>Set List</h2>
           
           <div className={STYLES.card}>
-            <div className="flex items-center gap-4 mb-6">
-              {/* Category Select */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6">
+              {/* Category Select - Make it full width on mobile */}
               <Select
                 value={currentCategory}
                 onValueChange={(value: SetListCategories) => setCurrentCategory(value)}
               >
-                <SelectTrigger className={`${STYLES.select} w-48`}>
+                <SelectTrigger className={`${STYLES.select} w-full sm:w-48`}>
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1126,8 +1126,8 @@ export default function ServiceSchedule(): JSX.Element {
                 </SelectContent>
               </Select>
 
-              {/* Search and Add Song Row */}
-              <div className="flex-1 flex gap-2">
+              {/* Search and Add Song Row - Stack inputs on mobile */}
+              <div className="flex-1 flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 relative">
                   <Input
                     placeholder="Search Song Title"
@@ -1148,6 +1148,7 @@ export default function ServiceSchedule(): JSX.Element {
                     className={STYLES.input}
                     disabled={!currentCategory}
                   />
+                  {/* Spotify Results Dropdown */}
                   {showSpotifyResults && spotifyResults.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-[#282828] rounded-lg shadow-lg max-h-60 overflow-auto">
                       {spotifyResults.map((track) => (
@@ -1186,26 +1187,28 @@ export default function ServiceSchedule(): JSX.Element {
                     </div>
                   )}
                 </div>
-                <Input
-                  placeholder="Artist"
-                  value={currentCategory ? inputs[currentCategory].artist : ''}
-                  onChange={(e) => setInputs(prev => ({
-                    ...prev,
-                    [currentCategory]: {
-                      ...prev[currentCategory],
-                      artist: e.target.value
-                    }
-                  }))}
-                  className={`${STYLES.input} w-64`}
-                  disabled={!currentCategory}
-                />
-                <Button 
-                  onClick={() => handleAddSong(currentCategory)} 
-                  className={`${STYLES.button.primary}`}
-                  disabled={!inputs[currentCategory]?.title || !currentCategory}
-                >
-                  <PlusIcon className="h-5 w-5" />
-                </Button>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Artist"
+                    value={currentCategory ? inputs[currentCategory].artist : ''}
+                    onChange={(e) => setInputs(prev => ({
+                      ...prev,
+                      [currentCategory]: {
+                        ...prev[currentCategory],
+                        artist: e.target.value
+                      }
+                    }))}
+                    className={`${STYLES.input} flex-1 sm:w-64`}
+                    disabled={!currentCategory}
+                  />
+                  <Button 
+                    onClick={() => handleAddSong(currentCategory)} 
+                    className={`${STYLES.button.primary}`}
+                    disabled={!inputs[currentCategory]?.title || !currentCategory}
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
             </div>
 
