@@ -272,6 +272,7 @@ export default function ServiceSchedule(): JSX.Element {
   const [currentCategory, setCurrentCategory] = useState<SetListCategories>('');
   const [songSearch, setSongSearch] = useState('');
   const [showSpotifyResults, setShowSpotifyResults] = useState(false);
+  const [generatedDateTime, setGeneratedDateTime] = useState<Date | null>(null)
 
   // Refs
   const summaryRef = useRef<HTMLDivElement>(null)
@@ -392,7 +393,8 @@ export default function ServiceSchedule(): JSX.Element {
     }
   }
 
-  const handleCreate = (): void => {
+  const handleCreate = () => {
+    setGeneratedDateTime(new Date())
     setShowSummary(true)
   }
 
@@ -954,7 +956,9 @@ export default function ServiceSchedule(): JSX.Element {
         <section className={STYLES.section}>
           <h2 className={STYLES.sectionTitle}>Dress Code</h2>
           <div className={STYLES.card}>
-            <div className="grid grid-cols-3 gap-4">
+            {/* Change grid-cols-3 to grid-cols-1 on mobile, grid-cols-2 on medium screens, and grid-cols-3 on large screens */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Primary Color */}
               <div>
                 <label className="text-gray-400 mb-2 block">Primary Color</label>
                 <div className="flex h-10 w-full rounded-md bg-[#282828] px-3 items-center">
@@ -973,6 +977,7 @@ export default function ServiceSchedule(): JSX.Element {
                 </div>
               </div>
 
+              {/* Secondary Color */}
               <div>
                 <label className="text-gray-400 mb-2 block">Secondary Color</label>
                 <div className="flex h-10 w-full rounded-md bg-[#282828] px-3 items-center">
@@ -991,7 +996,8 @@ export default function ServiceSchedule(): JSX.Element {
                 </div>
               </div>
 
-              <div>
+              {/* Random Colors Button */}
+              <div className="md:col-span-2 lg:col-span-1"> {/* Make button span 2 columns on medium screens */}
                 <label className="text-gray-400 mb-2 block">Quick Generate</label>
                 <Button
                   onClick={() => {
@@ -1503,10 +1509,17 @@ export default function ServiceSchedule(): JSX.Element {
                 className={`${STYLES.summary.container} rounded-b-none border-b-0`}
               >
                 {/* Updated TechScript title */}
-                <h3 className="text-2xl font-bold text-green-500 mb-4 text-center">
-                  T E C H S C R I P T
-                </h3>
-                
+                <div className="flex flex-col items-center mb-4">
+                  <h3 className="text-2xl font-bold text-green-500">
+                    T E C H S C R I P T
+                  </h3>
+                  {generatedDateTime && (
+                    <div className="text-sm text-gray-400 mt-2">
+                      Generated: {generatedDateTime.toLocaleDateString()} {generatedDateTime.toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+
                 {/* Event Details */}
                 <div className={STYLES.summary.section}>
                   <h4 className={STYLES.summary.sectionTitle}>Event Details</h4>
