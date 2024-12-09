@@ -10,7 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import html2canvas from 'html2canvas'
 import SpotifyWebApi from 'spotify-web-api-node'
-import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { GripVertical } from 'lucide-react'; // For burger/grip icon
@@ -54,19 +53,6 @@ type SetListItem = {
   isLoading: boolean
   isDetailsVisible: boolean
   searchQuery?: string
-}
-
-type Person = {
-  id: string
-  name: string
-}
-
-type Musician = Person & {
-  instrument: string
-}
-
-type Creative = Person & {
-  role: string
 }
 
 type ProgrammeItem = {
@@ -155,52 +141,6 @@ const STYLES = {
   }
 }
 
-// Add this type definition near your other types at the top of the file
-type Database = {
-  public: {
-    Tables: {
-      preachers: {
-        Row: {
-          id: string
-          name: string
-        }
-      }
-      preaching_support: {
-        Row: {
-          id: string
-          name: string
-        }
-      }
-      worship_leaders: {
-        Row: {
-          id: string
-          name: string
-        }
-      }
-      vocalists: {
-        Row: {
-          id: string
-          name: string
-        }
-      }
-      musicians: {
-        Row: {
-          id: string
-          name: string
-          instrument: string
-        }
-      }
-      creatives: {
-        Row: {
-          id: string
-          name: string
-          role: string
-        }
-      }
-    }
-  }
-}
-
 // Add this interface near your other type definitions at the top of the file
 interface SpotifyApiTrack {
   id: string;
@@ -235,7 +175,6 @@ export default function ServiceSchedule(): JSX.Element {
     altarCall: [],
     revival: []
   })
-  const [keyVocals, setKeyVocals] = useState(['Soprano', 'Alto', 'Tenor', 'Bass'])
   const [showSummary, setShowSummary] = useState(false)
   const [showNotification, setShowNotification] = useState(false)
   const [open, setOpen] = useState(false)
@@ -248,16 +187,10 @@ export default function ServiceSchedule(): JSX.Element {
     altarCall: { title: '', artist: '', youtubeLink: '' },
     revival: { title: '', artist: '', youtubeLink: '' }
   })
-  const [preachers, setPreachers] = useState<Person[]>([])
-  const [preachingSupport, setPreachingSupport] = useState<Person[]>([])
-  const [worshipLeaders, setWorshipLeaders] = useState<Person[]>([])
-  const [vocalists, setVocalists] = useState<Person[]>([])
-  const [musicians, setMusicians] = useState<Musician[]>([])
-  const [creatives, setCreatives] = useState<Creative[]>([])
   const [selectedPreacher, setSelectedPreacher] = useState('')
   const [selectedSupport, setSelectedSupport] = useState('')
   const [selectedWorshipLeader, setSelectedWorshipLeader] = useState('')
-  const [selectedVocalists, setSelectedVocalists] = useState<string[]>([])
+  const [selectedVocalists, setSelectedVocalists] = useState<string[]>(['', '', '', ''])
   const [selectedMusicians, setSelectedMusicians] = useState<Record<string, string>>({})
   const [selectedCreatives, setSelectedCreatives] = useState<Record<string, string>>({})
   const [sermonSeries, setSermonSeries] = useState('')
@@ -273,6 +206,7 @@ export default function ServiceSchedule(): JSX.Element {
   const [songSearch, setSongSearch] = useState('');
   const [showSpotifyResults, setShowSpotifyResults] = useState(false);
   const [generatedDateTime, setGeneratedDateTime] = useState<Date | null>(null)
+  const [vocalLabels, setVocalLabels] = useState<string[]>(['Soprano', 'Alto', 'Tenor', 'Bass'])
 
   // Refs
   const summaryRef = useRef<HTMLDivElement>(null)
@@ -283,64 +217,6 @@ export default function ServiceSchedule(): JSX.Element {
     setCurrentDateTime(new Date())
     const timer = setInterval(() => setCurrentDateTime(new Date()), 1000)
     return () => clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
-    const fetchRoleData = async () => {
-      try {
-        const { data: preachersData, error: preachersError } = await supabase
-          .from('preachers')
-          .select('id, name')
-          .returns<Database['public']['Tables']['preachers']['Row'][]>()
-        
-        if (preachersError) throw preachersError
-        setPreachers(preachersData || [])
-
-        const { data: supportData, error: supportError } = await supabase
-          .from('preaching_support')
-          .select('id, name')
-          .returns<Database['public']['Tables']['preaching_support']['Row'][]>()
-        
-        if (supportError) throw supportError
-        setPreachingSupport(supportData || [])
-
-        const { data: worshipData, error: worshipError } = await supabase
-          .from('worship_leaders')
-          .select('id, name')
-          .returns<Database['public']['Tables']['worship_leaders']['Row'][]>()
-        
-        if (worshipError) throw worshipError
-        setWorshipLeaders(worshipData || [])
-
-        const { data: vocalistsData, error: vocalistsError } = await supabase
-          .from('vocalists')
-          .select('id, name')
-          .returns<Database['public']['Tables']['vocalists']['Row'][]>()
-        
-        if (vocalistsError) throw vocalistsError
-        setVocalists(vocalistsData || [])
-
-        const { data: musiciansData, error: musiciansError } = await supabase
-          .from('musicians')
-          .select('id, name, instrument')
-          .returns<Database['public']['Tables']['musicians']['Row'][]>()
-        
-        if (musiciansError) throw musiciansError
-        setMusicians(musiciansData || [])
-
-        const { data: creativesData, error: creativesError } = await supabase
-          .from('creatives')
-          .select('id, name, role')
-          .returns<Database['public']['Tables']['creatives']['Row'][]>()
-        
-        if (creativesError) throw creativesError
-        setCreatives(creativesData || [])
-      } catch (error) {
-        console.error('Error fetching role data:', error instanceof Error ? error.message : String(error))
-      }
-    }
-
-    fetchRoleData()
   }, [])
 
   useEffect(() => {
@@ -608,6 +484,13 @@ export default function ServiceSchedule(): JSX.Element {
       }
     }));
   };
+
+  // Add this function before the other event handlers
+  const addVocalist = () => {
+    const nextNumber = vocalLabels.length + 1
+    setVocalLabels(prev => [...prev, `Vocalist ${nextNumber}`])
+    setSelectedVocalists(prev => [...prev, ''])
+  }
 
   // Render methods
   const renderEventDetails = () => (
@@ -1263,31 +1146,23 @@ export default function ServiceSchedule(): JSX.Element {
             <div className={STYLES.card}>
               <h3 className={STYLES.subsectionTitle}>Sermon</h3>
               <div className="space-y-4">
-                <Select value={selectedPreacher} onValueChange={setSelectedPreacher}>
-                  <SelectTrigger className={STYLES.select}>
-                    <SelectValue placeholder="Preacher" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {preachers.map((preacher) => (
-                      <SelectItem key={preacher.id} value={preacher.id.toString()}>
-                        {preacher.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={selectedSupport} onValueChange={setSelectedSupport}>
-                  <SelectTrigger className={STYLES.select}>
-                    <SelectValue placeholder="Preaching Support" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {preachingSupport.map((person) => (
-                      <SelectItem key={person.id} value={person.id.toString()}>
-                        {person.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Input
+                    placeholder="Preacher"
+                    value={selectedPreacher}
+                    onChange={(e) => setSelectedPreacher(e.target.value)}
+                    className={STYLES.input}
+                  />
+                </div>
+                
+                <div>
+                  <Input
+                    placeholder="Preaching Support"
+                    value={selectedSupport}
+                    onChange={(e) => setSelectedSupport(e.target.value)}
+                    className={STYLES.input}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1295,57 +1170,30 @@ export default function ServiceSchedule(): JSX.Element {
             <div className={STYLES.card}>
               <h3 className={STYLES.subsectionTitle}>Worship</h3>
               <div className="space-y-4">
-                <Select value={selectedWorshipLeader} onValueChange={setSelectedWorshipLeader}>
-                  <SelectTrigger className={STYLES.select}>
-                    <SelectValue placeholder="Worship Leader" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {worshipLeaders
-                      .filter(leader => {
-                        const selectedAsVocalist = selectedVocalists.includes(leader.id.toString())
-                        return !selectedAsVocalist || selectedWorshipLeader === leader.id.toString()
-                      })
-                      .map((leader) => (
-                        <SelectItem key={leader.id} value={leader.id.toString()}>
-                          {leader.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Input
+                    placeholder="Worship Leader"
+                    value={selectedWorshipLeader}
+                    onChange={(e) => setSelectedWorshipLeader(e.target.value)}
+                    className={STYLES.input}
+                  />
+                </div>
 
                 <div>
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Key Vocals</h4>
                   <div className="space-y-2">
-                    {keyVocals.map((vocal, index) => (
+                    {vocalLabels.map((vocal, index) => (
                       <div key={index} className="flex items-center gap-2">
                         <div className="flex-grow">
-                          <Select
-                            value={selectedVocalists[index] || ""}
-                            onValueChange={(value) => {
+                          <Input
+                            placeholder={`${vocal}`}
+                            value={selectedVocalists[index] || ''}
+                            onChange={(e) => {
                               const newSelected = [...selectedVocalists]
-                              newSelected[index] = value
+                              newSelected[index] = e.target.value
                               setSelectedVocalists(newSelected)
                             }}
-                          >
-                            <SelectTrigger className={STYLES.select}>
-                              <SelectValue placeholder={`Select ${vocal}`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {vocalists
-                                .filter(vocalist => {
-                                  const selectedInOtherPosition = selectedVocalists
-                                    .filter((_, i) => i !== index)
-                                    .includes(vocalist.id.toString())
-                                  const selectedAsLeader = selectedWorshipLeader === vocalist.id.toString()
-                                  return !selectedInOtherPosition && !selectedAsLeader
-                                })
-                                .map((vocalist) => (
-                                  <SelectItem key={vocalist.id} value={vocalist.id.toString()}>
-                                    {vocalist.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
+                            className={STYLES.input}
+                          />
                         </div>
                         {selectedVocalists[index] && (
                           <Button
@@ -1360,15 +1208,14 @@ export default function ServiceSchedule(): JSX.Element {
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Add Vocalist Button */}
                   <Button
-                    onClick={() => {
-                      setKeyVocals(prev => [...prev, `Voice ${prev.length + 1}`])
-                      setSelectedVocalists(prev => [...prev, ''])
-                    }}
-                    className={`mt-2 ${STYLES.button.primary}`}
+                    onClick={addVocalist}
+                    className={`${STYLES.button.secondary} mt-4 w-full`}
                   >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Add Voice
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Add Vocalist
                   </Button>
                 </div>
               </div>
@@ -1378,60 +1225,33 @@ export default function ServiceSchedule(): JSX.Element {
             <div className={STYLES.card}>
               <h3 className={STYLES.subsectionTitle}>Musicians</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => {
-                  const availableMusicians = musicians.filter(m => {
-                    const playsInstrument = m.instrument === instrument
-                    const musicianName = m.name
-                    const isSelectedElsewhere = Object.entries(selectedMusicians).some(([otherInstrument, selectedId]) => {
-                      const selectedMusician = musicians.find(m => m.id.toString() === selectedId)
-                      return otherInstrument !== instrument && selectedMusician?.name === musicianName
-                    })
-                    return playsInstrument && !isSelectedElsewhere
-                  })
-
-                  return (
-                    <div key={instrument} className="flex items-center gap-2">
-                      <div className="flex-grow">
-                        <Select
-                          value={selectedMusicians[instrument] || ""}
-                          onValueChange={(value) => {
-                            setSelectedMusicians(prev => ({
-                              ...prev,
-                              [instrument]: value
-                            }))
-                          }}
-                        >
-                          <SelectTrigger className={STYLES.select}>
-                            <SelectValue placeholder={instrument} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableMusicians.length > 0 ? (
-                              availableMusicians.map((musician) => (
-                                <SelectItem key={musician.id} value={musician.id.toString()}>
-                                  {musician.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="no-musicians" disabled>
-                                No musicians available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {selectedMusicians[instrument] && (
-                        <Button
-                          onClick={() => clearMusician(instrument)}
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                        </Button>
-                      )}
+                {['Acoustic Guitar', 'Electric Guitar', 'Bass Guitar', 'Keyboard', 'Drums'].map((instrument) => (
+                  <div key={instrument} className="flex items-center gap-2">
+                    <div className="flex-grow">
+                      <Input
+                        placeholder={`${instrument}`}
+                        value={selectedMusicians[instrument] || ''}
+                        onChange={(e) => {
+                          setSelectedMusicians(prev => ({
+                            ...prev,
+                            [instrument]: e.target.value
+                          }))
+                        }}
+                        className={STYLES.input}
+                      />
                     </div>
-                  )
-                })}
+                    {selectedMusicians[instrument] && (
+                      <Button
+                        onClick={() => clearMusician(instrument)}
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1439,54 +1259,33 @@ export default function ServiceSchedule(): JSX.Element {
             <div className={STYLES.card}>
               <h3 className={STYLES.subsectionTitle}>Creatives</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => {
-                  const availableCreatives = creatives.filter(c => {
-                    const hasRole = c.role === role
-                    const creativeName = c.name
-                    const isSelectedElsewhere = Object.entries(selectedCreatives).some(([otherRole, selectedId]) => {
-                      const selectedCreative = creatives.find(c => c.id.toString() === selectedId)
-                      return otherRole !== role && selectedCreative?.name === creativeName
-                    })
-                    return hasRole && !isSelectedElsewhere
-                  })
-
-                  return (
-                    <div key={role} className="flex items-center gap-2">
-                      <div className="flex-grow">
-                        <Select
-                          value={selectedCreatives[role] || ""}
-                          onValueChange={(value) => {
-                            setSelectedCreatives(prev => ({
-                              ...prev,
-                              [role]: value
-                            }))
-                          }}
-                        >
-                          <SelectTrigger className={STYLES.select}>
-                            <SelectValue placeholder={role} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableCreatives.map((creative) => (
-                              <SelectItem key={creative.id} value={creative.id.toString()}>
-                                {creative.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {selectedCreatives[role] && (
-                        <Button
-                          onClick={() => clearCreative(role)}
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-500 hover:text-red-600 hover:bg-transparent flex-shrink-0"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                        </Button>
-                      )}
+                {['Lighting', 'Visual Lyrics', 'Prompter', 'Photography', 'Content Writer'].map((role) => (
+                  <div key={role} className="flex items-center gap-2">
+                    <div className="flex-grow">
+                      <Input
+                        placeholder={`${role}`}
+                        value={selectedCreatives[role] || ''}
+                        onChange={(e) => {
+                          setSelectedCreatives(prev => ({
+                            ...prev,
+                            [role]: e.target.value
+                          }))
+                        }}
+                        className={STYLES.input}
+                      />
                     </div>
-                  )
-                })}
+                    {selectedCreatives[role] && (
+                      <Button
+                        onClick={() => clearCreative(role)}
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-transparent"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1607,13 +1406,13 @@ export default function ServiceSchedule(): JSX.Element {
                           {selectedPreacher && (
                             <div className={STYLES.summary.row}>
                               <span className={STYLES.summary.label}>Preacher</span>
-                              <span className={STYLES.summary.value}>: {preachers.find(p => p.id.toString() === selectedPreacher)?.name}</span>
+                              <span className={STYLES.summary.value}>: {selectedPreacher}</span>
                             </div>
                           )}
                           {selectedSupport && (
                             <div className={STYLES.summary.row}>
-                              <span className={STYLES.summary.label}>Support</span>
-                              <span className={STYLES.summary.value}>: {preachingSupport.find(p => p.id.toString() === selectedSupport)?.name}</span>
+                              <span className={STYLES.summary.label}>Preaching Support</span>
+                              <span className={STYLES.summary.value}>: {selectedSupport}</span>
                             </div>
                           )}
                         </>
@@ -1630,7 +1429,7 @@ export default function ServiceSchedule(): JSX.Element {
                       {selectedWorshipLeader ? (
                         <div className={STYLES.summary.row}>
                           <span className={STYLES.summary.label}>Worship Leader</span>
-                          <span className={STYLES.summary.value}>: {worshipLeaders.find(w => w.id.toString() === selectedWorshipLeader)?.name}</span>
+                          <span className={STYLES.summary.value}>: {selectedWorshipLeader}</span>
                         </div>
                       ) : (
                         <div className={STYLES.summary.row}>
@@ -1646,7 +1445,7 @@ export default function ServiceSchedule(): JSX.Element {
                         Object.entries(selectedCreatives).map(([role, id]) => id && (
                           <div key={role} className={STYLES.summary.row}>
                             <span className={STYLES.summary.label}>{role}</span>
-                            <span className={STYLES.summary.value}>: {creatives.find(c => c.id.toString() === id)?.name}</span>
+                            <span className={STYLES.summary.value}>: {selectedCreatives[role]}</span>
                           </div>
                         ))
                       ) : (
@@ -1663,7 +1462,7 @@ export default function ServiceSchedule(): JSX.Element {
                         selectedVocalists.map((id, index) => id && (
                           <div key={index} className={STYLES.summary.row}>
                             <span className={STYLES.summary.label}>Vocalist {index + 1}</span>
-                            <span className={STYLES.summary.value}>: {vocalists.find(v => v.id.toString() === id)?.name}</span>
+                            <span className={STYLES.summary.value}>: {id}</span>
                           </div>
                         ))
                       ) : (
@@ -1680,7 +1479,7 @@ export default function ServiceSchedule(): JSX.Element {
                         Object.entries(selectedMusicians).map(([instrument, id]) => id && (
                           <div key={instrument} className={STYLES.summary.row}>
                             <span className={STYLES.summary.label}>{instrument}</span>
-                            <span className={STYLES.summary.value}>: {musicians.find(m => m.id.toString() === id)?.name}</span>
+                            <span className={STYLES.summary.value}>: {id}</span>
                           </div>
                         ))
                       ) : (
